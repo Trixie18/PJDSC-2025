@@ -893,7 +893,7 @@ def page_weather_analytics():
     # -------------------------------
     # 11. PDF REPORT DOWNLOAD
     # -------------------------------
-    '''
+    """
     data = get_weather_and_suspension(datetime.combine(selected_date, datetime.min.time()), city, df, load_model_artifacts())
     if not data:
         st.warning("No data available for the selected date and city.")
@@ -918,7 +918,7 @@ def page_weather_analytics():
             # Export chart images to temporary files
             for fig_obj in [fig_gauge, fig_map, fig, scatter]:
                 temp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-                svg_bytes = pio.to_image(fig_obj, format="svg")
+                pio.write_image(fig_obj, temp_img.name, format='png', width=500, height=270, engine='kaleido')
                 temp_imgs.append(temp_img.name)
                 temp_img.close()
 
@@ -985,7 +985,7 @@ def page_weather_analytics():
              for path in temp_imgs:
                 if os.path.exists(path):
                     os.remove(path)
-    '''
+    """
 
 # ============================================================================
 # PAGE: HISTORICAL ANALYTICS
