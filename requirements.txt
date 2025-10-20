@@ -5,7 +5,7 @@ scikit-learn
 lightgbm
 tqdm
 streamlit
-plotly
+plotly>=6.1.1
+kaleido>=1.1.0
 fpdf
 requests
-kaleido
