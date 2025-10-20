@@ -893,7 +893,7 @@ def page_weather_analytics():
     # -------------------------------
     # 11. PDF REPORT DOWNLOAD
     # -------------------------------
-    """
+    _ = """
     data = get_weather_and_suspension(datetime.combine(selected_date, datetime.min.time()), city, df, load_model_artifacts())
     if not data:
         st.warning("No data available for the selected date and city.")
