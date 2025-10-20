@@ -1641,7 +1641,7 @@ boost_from_average: {best_params.get('boost_from_average', 'N/A')}
 
             with col2:
                 st.markdown(f"<h2 style='font-size: 30px;'>{member['name']}</h2>", unsafe_allow_html=True)
-                st.markdown(f"<p style='font-size: 20px; font-weight: bold;'>🏫{member['school']}</p>", unsafe_allow_html=True)
+                st.markdown(f"<p style='font-size: 20px; font-weight: bold;'>🏫 {member['school']}</p>", unsafe_allow_html=True)
                 st.markdown(f"<p style='font-size: 18px;'>{member['description']}</p>", unsafe_allow_html=True)
                 st.markdown(f"<p style='font-size: 18p;'>📧 <strong>Contact:</strong> {member['contact']}</p>", unsafe_allow_html=True)
 
