@@ -1,0 +1,24 @@
+{
+  "model_version": "2.0",
+  "training_date": "2025-10-19T19:42:34.300960",
+  "best_model": "lightgbm_tuned",
+  "accuracy": 0.9716981132075472,
+  "f1_score": 0.9772379210581017,
+  "train_size": 605472,
+  "test_size": 151368,
+  "total_features": 28,
+  "tuned": true,
+  "best_hyperparameters": {
+    "colsample_bytree": 0.8,
+    "learning_rate": 0.03,
+    "max_depth": 10,
+    "min_child_samples": 10,
+    "n_estimators": 800,
+    "num_leaves": 100,
+    "reg_alpha": 0.3,
+    "reg_lambda": 2.0,
+    "subsample": 0.9,
+    "min_child_weight": 0.001,
+    "boost_from_average": false
+  }
+}

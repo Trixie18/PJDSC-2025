@@ -1,0 +1,50 @@
+{
+  "level_0": {
+    "precipitation_mean": 0.25025461369189844,
+    "precipitation_max": 42.0,
+    "windspeed_mean": 9.214288175178542,
+    "windspeed_max": 69.6,
+    "humidity_mean": 78.44193131100401,
+    "count": 740730
+  },
+  "level_1": {
+    "precipitation_mean": 0.3113095238095238,
+    "precipitation_max": 3.9,
+    "windspeed_mean": 3.4818452380952385,
+    "windspeed_max": 15.91,
+    "humidity_mean": 85.96964285714287,
+    "count": 168
+  },
+  "level_2": {
+    "precipitation_mean": 0.7037037037037037,
+    "precipitation_max": 15.3,
+    "windspeed_mean": 10.054166666666667,
+    "windspeed_max": 27.3,
+    "humidity_mean": 79.55555555555556,
+    "count": 216
+  },
+  "level_3": {
+    "precipitation_mean": 0.6627177700348432,
+    "precipitation_max": 29.0,
+    "windspeed_mean": 16.67087108013937,
+    "windspeed_max": 51.2,
+    "humidity_mean": 80.13307200929152,
+    "count": 1722
+  },
+  "level_4": {
+    "precipitation_mean": 1.2379722500835841,
+    "precipitation_max": 24.9,
+    "windspeed_mean": 17.028942661317288,
+    "windspeed_max": 69.6,
+    "humidity_mean": 85.48833082581076,
+    "count": 11964
+  },
+  "level_5": {
+    "precipitation_mean": 1.1436764705882352,
+    "precipitation_max": 9.5,
+    "windspeed_mean": 11.150294117647059,
+    "windspeed_max": 34.2,
+    "humidity_mean": 88.55735294117648,
+    "count": 2040
+  }
+}

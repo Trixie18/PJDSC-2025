@@ -1,0 +1,12 @@
+[client]
+showSidebarNavigation = true
+
+[layout]
+sidebar.width = 450
+
+[theme]
+primaryColor = "#3b82f6"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#262730"
+font = "sans serif"
