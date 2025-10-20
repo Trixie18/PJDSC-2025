@@ -1,0 +1,11 @@
+pandas
+numpy
+joblib
+scikit-learn
+lightgbm
+tqdm
+streamlit
+plotly
+fpdf
+requests
+kaleido
