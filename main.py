@@ -191,7 +191,7 @@ def fetch_openmeteo_forecast(date: datetime, city: str) -> Optional[Dict]:
             'timezone': 'Asia/Manila'
         }
         
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=5)
         response.raise_for_status()
         data = response.json()
         
