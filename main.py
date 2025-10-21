@@ -1025,7 +1025,7 @@ def page_historical_analytics():
             )
             st.session_state.hist_end_date = end_date
         
-        selected_cities = st.multiselect("Select Cities", sorted(CITY_COORDINATES.keys()), default=['Manila', 'Quezon City'], key='hist_cities')
+        selected_cities = st.multiselect("Select Cities", sorted(CITY_COORDINATES.keys()), default=['Pasig', 'Manila', 'Quezon City'], key='hist_cities')
     
     mask = (df['date'].dt.date >= start_date) & (df['date'].dt.date <= end_date)
     if selected_cities:
