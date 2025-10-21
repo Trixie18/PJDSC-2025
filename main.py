@@ -573,168 +573,186 @@ def generate_suspension_memorandum_pdf(
     
     pdf.add_disclaimer()
     
-    # Create charts for annex
-    temp_img_paths = []
-    try:
-        # Chart 1: Hourly Weather Trends
-        fig_hourly = make_subplots(
-            rows=3, cols=1,
-            subplot_titles=('Temperature (°C)', 'Precipitation (mm)', 'Wind Speed (km/h)'),
-            vertical_spacing=0.1
-        )
-        
-        fig_hourly.add_trace(
-            go.Scatter(x=hourly_df['date'], y=hourly_df['temperature_2m'],
-                      name='Temperature', line=dict(color='#ef4444', width=2),
-                      fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.1)'),
-            row=1, col=1
-        )
-        fig_hourly.add_trace(
-            go.Bar(x=hourly_df['date'], y=hourly_df['precipitation'],
-                  name='Precipitation', marker_color='#3b82f6'),
-            row=2, col=1
-        )
-        fig_hourly.add_trace(
-            go.Scatter(x=hourly_df['date'], y=hourly_df['windspeed_10m'],
-                      name='Wind Speed', line=dict(color='#10b981', width=2)),
-            row=3, col=1
-        )
-        
-        fig_hourly.update_xaxes(title_text="Time", row=3, col=1)
-        fig_hourly.update_layout(height=600, showlegend=False, 
-                                margin=dict(l=50, r=20, t=80, b=50))
-        
-        img_path1 = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
-        pio.write_image(fig_hourly, img_path1, format='png', width=800, height=500, engine='kaleido')
-        temp_img_paths.append(img_path1)
-        
-        # Chart 2: ML Prediction probabilities
-        probs = ml_prediction['probabilities']
-        if len(probs) < 5:
-            probs = list(probs) + [0.0] * (5 - len(probs))
-        else:
-            probs = list(probs)[:5]
-        
-        prob_colors = [SUSPENSION_LEVELS[i]['color'] for i in range(len(probs))]
-        
-        fig_probs = go.Figure(go.Bar(
-            x=[f"Level {i}" for i in range(len(probs))],
-            y=[p * 100 for p in probs],
-            marker_color=prob_colors,
-            text=[f"{p*100:.1f}%" for p in probs],
-            textposition='auto'
-        ))
-        fig_probs.update_layout(
-            title="ML Prediction Probability Distribution",
-            xaxis_title="Suspension Level",
-            yaxis_title="Probability (%)",
-            height=400,
-            margin=dict(l=50, r=20, t=80, b=50)
-        )
-        
-        img_path2 = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
-        pio.write_image(fig_probs, img_path2, format='png', width=800, height=400, engine='kaleido')
-        temp_img_paths.append(img_path2)
-        
-    except Exception as e:
-        st.warning(f"Could not generate chart images: {str(e)}")
-    
-    # Add Annex page
+    # Add Annex page with text-only analytics (no images)
     pdf.add_page()
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "ANNEX: WEATHER ANALYTICS SUPPORT", ln=True)
     pdf.set_font("Arial", "", 10)
     pdf.ln(3)
     
+    # A. Hourly Weather Trends Analysis
     pdf.set_font("Arial", "B", 10)
-    pdf.cell(0, 6, "A. Hourly Weather Trends", ln=True)
+    pdf.cell(0, 6, "A. Hourly Weather Trends Summary", ln=True)
     pdf.ln(2)
     pdf.set_font("Arial", "", 9)
     pdf.multi_cell(0, 5, 
-        "The chart below shows hourly temperature, precipitation, and wind speed trends throughout the selected date. "
+        "The following analysis summarizes hourly temperature, precipitation, and wind speed patterns throughout the selected date. "
         "These metrics are critical indicators for determining suspension levels as they directly impact safety conditions "
         "for students and workers.")
     pdf.ln(2)
     
-    if len(temp_img_paths) > 0:
-        try:
-            pdf.image(temp_img_paths[0], x=10, y=pdf.get_y(), w=190)
-            pdf.ln(90)
-        except Exception as e:
-            pdf.set_font("Arial", "I", 9)
-            pdf.cell(0, 5, "[Hourly trends chart could not be embedded]", ln=True)
-            pdf.ln(2)
+    # Extract key statistics
+    max_temp = hourly_df['temperature_2m'].max()
+    min_temp = hourly_df['temperature_2m'].min()
+    avg_temp = hourly_df['temperature_2m'].mean()
+    max_wind = hourly_df['windspeed_10m'].max()
+    avg_wind = hourly_df['windspeed_10m'].mean()
+    total_precip = hourly_df['precipitation'].sum()
+    max_precip_hour = hourly_df['precipitation'].max()
+    avg_humidity = hourly_df['relativehumidity_2m'].mean()
     
-    # Weather analysis text
+    # Create text-based summary table
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "Temperature Analysis", ln=True)
+    pdf.ln(1)
+    pdf.set_font("Arial", "", 9)
+    
+    col_width = (pdf.WIDTH - 30) / 2
+    pdf.set_x(20)
+    pdf.cell(col_width - 5, 5, "Metric", border=1, fill=True)
+    pdf.cell(col_width - 5, 5, "Value", border=1, fill=True, ln=True)
+    
+    temp_metrics = [
+        ("Minimum", f"{min_temp:.1f}°C"),
+        ("Maximum", f"{max_temp:.1f}°C"),
+        ("Average", f"{avg_temp:.1f}°C"),
+    ]
+    
+    for label, value in temp_metrics:
+        pdf.set_x(20)
+        pdf.cell(col_width - 5, 5, label, border=1)
+        pdf.cell(col_width - 5, 5, value, border=1, ln=True)
+    
+    pdf.ln(3)
+    
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "Precipitation Analysis", ln=True)
+    pdf.ln(1)
+    pdf.set_font("Arial", "", 9)
+    
+    precip_metrics = [
+        ("Total Precipitation", f"{total_precip:.1f} mm"),
+        ("Peak Hourly", f"{max_precip_hour:.1f} mm"),
+        ("Average Humidity", f"{avg_humidity:.1f}%"),
+    ]
+    
+    for label, value in precip_metrics:
+        pdf.set_x(20)
+        pdf.cell(col_width - 5, 5, label, border=1)
+        pdf.cell(col_width - 5, 5, value, border=1, ln=True)
+    
+    pdf.ln(3)
+    
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "Wind Analysis", ln=True)
+    pdf.ln(1)
+    pdf.set_font("Arial", "", 9)
+    
+    wind_metrics = [
+        ("Maximum Wind", f"{max_wind:.1f} km/h"),
+        ("Average Wind", f"{avg_wind:.1f} km/h"),
+    ]
+    
+    for label, value in wind_metrics:
+        pdf.set_x(20)
+        pdf.cell(col_width - 5, 5, label, border=1)
+        pdf.cell(col_width - 5, 5, value, border=1, ln=True)
+    
+    pdf.ln(3)
+    
+    # B. Weather Pattern Analysis
     pdf.set_font("Arial", "B", 10)
     pdf.cell(0, 6, "B. Weather Pattern Analysis", ln=True)
     pdf.ln(2)
     pdf.set_font("Arial", "", 9)
     
-    max_temp = hourly_df['temperature_2m'].max()
-    min_temp = hourly_df['temperature_2m'].min()
-    max_wind = hourly_df['windspeed_10m'].max()
-    total_precip = hourly_df['precipitation'].sum()
-    avg_humidity = hourly_df['relativehumidity_2m'].mean()
-    
-    analysis_text = (
-        f"Temperature Range: {min_temp:.1f}°C to {max_temp:.1f}°C\n"
-        f"Maximum Wind Speed: {max_wind:.1f} km/h\n"
-        f"Total Precipitation: {total_precip:.1f} mm\n"
-        f"Average Humidity: {avg_humidity:.1f}%\n\n"
-    )
+    analysis_text = "Detailed Assessment:\n\n"
     
     if max_wind > 100:
-        analysis_text += "HIGH WIND CONDITIONS: Wind speeds exceed safe outdoor operation thresholds. "
+        analysis_text += f"⚠️ HIGH WIND CONDITIONS: Maximum wind speed of {max_wind:.1f} km/h exceeds safe outdoor operation thresholds. This level of wind poses significant hazard to students and outdoor workers.\n\n"
+    elif max_wind > 60:
+        analysis_text += f"⚠️ MODERATE WIND: Wind speeds reached {max_wind:.1f} km/h, which may require precautions for outdoor activities.\n\n"
+    
     if total_precip > 30:
-        analysis_text += "HEAVY RAINFALL DETECTED: Precipitation levels pose flooding and transportation hazards. "
+        analysis_text += f"⚠️ HEAVY RAINFALL DETECTED: Total precipitation of {total_precip:.1f} mm poses flooding and transportation hazards. Peak hourly rainfall reached {max_precip_hour:.1f} mm.\n\n"
+    elif total_precip > 15:
+        analysis_text += f"⚠️ MODERATE RAINFALL: Total precipitation of {total_precip:.1f} mm may impact transportation and outdoor activities.\n\n"
+    
     if max_temp > 40:
-        analysis_text += "EXTREME HEAT: Apparent temperature may pose health risks for outdoor activities. "
+        analysis_text += f"🌡️ EXTREME HEAT: Apparent temperature may reach {max_temp:.1f}°C, posing health risks for outdoor activities.\n\n"
+    elif max_temp > 35:
+        analysis_text += f"🌡️ HIGH TEMPERATURE: Temperature reached {max_temp:.1f}°C. Students and workers should take precautions during outdoor activities.\n\n"
+    
+    if avg_humidity > 80:
+        analysis_text += f"💧 HIGH HUMIDITY: Average humidity of {avg_humidity:.1f}% combined with temperature makes conditions feel more oppressive.\n\n"
+    
+    if total_precip == 0 and max_wind < 30 and max_temp < 35:
+        analysis_text += "✅ FAVORABLE CONDITIONS: Weather conditions appear relatively stable with no precipitation, manageable wind speeds, and moderate temperatures."
     
     pdf.multi_cell(0, 5, analysis_text)
     pdf.ln(2)
     
-    # ML Model prediction probabilities annex
+    # C. Machine Learning Model Prediction Details
     pdf.set_font("Arial", "B", 10)
-    pdf.cell(0, 6, "C. Machine Learning Model Confidence", ln=True)
+    pdf.cell(0, 6, "C. Machine Learning Model Confidence Breakdown", ln=True)
     pdf.ln(2)
     pdf.set_font("Arial", "", 9)
+    
     pdf.multi_cell(0, 5,
-        "The ML model prediction probabilities for each suspension level are shown below. "
+        "The ML model prediction probabilities for each suspension level are summarized below. "
         "The model was trained on historical weather data and suspension records from Metro Manila using LightGBM classifier.")
     pdf.ln(2)
     
-    if len(temp_img_paths) > 1:
-        try:
-            pdf.image(temp_img_paths[1], x=10, y=pdf.get_y(), w=190)
-            pdf.ln(70)
-        except Exception as e:
-            pdf.set_font("Arial", "I", 9)
-            pdf.cell(0, 5, "[Probability chart could not be embedded]", ln=True)
-            pdf.ln(2)
+    probs = ml_prediction['probabilities']
+    if len(probs) < 5:
+        probs = list(probs) + [0.0] * (5 - len(probs))
+    else:
+        probs = list(probs)[:5]
     
-    # Data sources
+    # Probability table
+    pdf.set_font("Arial", "B", 9)
+    col_width_prob = (pdf.WIDTH - 30) / 2
+    pdf.set_x(20)
+    pdf.cell(col_width_prob - 5, 5, "Suspension Level", border=1, fill=True)
+    pdf.cell(col_width_prob - 5, 5, "Probability", border=1, fill=True, ln=True)
+    
+    pdf.set_font("Arial", "", 9)
+    level_names = ["No Suspension", "Preschool Only", "Preschool + Elementary", "All Levels (Public)", "All Levels + Work"]
+    for i, prob in enumerate(probs):
+        pdf.set_x(20)
+        level_label = level_names[i] if i < len(level_names) else f"Level {i}"
+        pdf.cell(col_width_prob - 5, 5, level_label, border=1)
+        pdf.cell(col_width_prob - 5, 5, f"{prob*100:.1f}%", border=1, ln=True)
+    
+    pdf.ln(3)
+    
+    # D. Data Sources
     pdf.set_font("Arial", "B", 10)
     pdf.cell(0, 6, "D. Data Sources & Methodology", ln=True)
     pdf.ln(2)
     pdf.set_font("Arial", "", 9)
     pdf.multi_cell(0, 5,
         "Weather Data: Open-Meteo API (for forecasts) / Historical Dataset (for past dates)\n"
-        "ML Model: LightGBM Classifier with hyperparameter optimization\n"
+        "ML Model: LightGBM Classifier with hyperparameter optimization and class balancing\n"
         "PAGASA Criteria: Official Philippine Atmospheric, Geophysical and Astronomical Services Administration guidelines\n"
-        "Cities Covered: All 17 cities of Metro Manila with geographic coordinates")
+        "Cities Covered: All 17 cities of Metro Manila with geographic coordinates\n"
+        "Training Period: 2020-2025 with stratified cross-validation")
+    
+    pdf.ln(2)
+    
+    # E. Interpretation Guide
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "E. How to Interpret This Report", ln=True)
+    pdf.ln(2)
+    pdf.set_font("Arial", "", 9)
+    pdf.multi_cell(0, 5,
+        "This annex provides supplementary weather analysis to support the main suspension memorandum. "
+        "The data presented here includes hourly weather metrics, model confidence scores, and meteorological assessment. "
+        "Final suspension decisions should consider both the ML prediction and official PAGASA criteria presented in the main memorandum.")
     
     # Save PDF
     output_path = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
     pdf.output(output_path)
-    
-    # Clean up temporary image files
-    for img_path in temp_img_paths:
-        try:
-            if os.path.exists(img_path):
-                os.remove(img_path)
-        except:
-            pass
     
     return output_path
 
