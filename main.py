@@ -1003,34 +1003,10 @@ def page_historical_analytics():
     with st.sidebar:
         st.markdown("### Selection Settings")
         col1, col2 = st.columns(2)
-        
-        # Initialize session state for dates if not exists
-        if 'hist_start_date' not in st.session_state:
-            st.session_state.hist_start_date = datetime(2025, 7, 20).date()
-        if 'hist_end_date' not in st.session_state:
-            st.session_state.hist_end_date = datetime(2025, 9, 12).date()
-        
         with col1:
-            # Start date picker: end date and beyond are disabled
-            start_date = st.date_input(
-                "Start Date", 
-                value=st.session_state.hist_start_date,
-                min_value=min_date, 
-                max_value=st.session_state.hist_end_date,  # Can't go past end date
-                key='hist_start'
-            )
-            st.session_state.hist_start_date = start_date
-        
+            start_date = st.date_input("Start Date", datetime(2025, 7, 20).date(), min_value=min_date, max_value=max_date, key='hist_start')
         with col2:
-            # End date picker: start date and before are disabled
-            end_date = st.date_input(
-                "End Date", 
-                value=st.session_state.hist_end_date,
-                min_value=st.session_state.hist_start_date,  # Can't go before start date
-                max_value=max_date,
-                key='hist_end'
-            )
-            st.session_state.hist_end_date = end_date
+            end_date = st.date_input("End Date", datetime(2025, 9, 12).date(), min_value=min_date, max_value=max_date, key='hist_end')
         
         selected_cities = st.multiselect("Select Cities", sorted(CITY_COORDINATES.keys()), default=['Manila', 'Quezon City'], key='hist_cities')
     
