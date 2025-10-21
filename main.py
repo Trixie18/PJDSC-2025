@@ -505,7 +505,7 @@ def page_home():
             st.info("Forecast Mode - Using Open-Meteo API")
         
         if st.button("Change to Today", use_container_width=True):
-            st.session_state.home_selected_date = datetime.now().date()
+            selected_date = datetime.now().date()
             st.rerun()
     
     
@@ -641,7 +641,7 @@ def page_weather_analytics():
             st.info("Forecast Mode - Using Open-Meteo API")
         
         if st.button("Change to Today", use_container_width=True, key='analytics_today_btn'):
-            st.session_state.analytics_selected_date = datetime.now().date()
+            selected_date = datetime.now().date()
             st.rerun()
     
     data = get_weather_and_suspension(datetime.combine(selected_date, datetime.min.time()), city, df, load_model_artifacts())
