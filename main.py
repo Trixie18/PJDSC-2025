@@ -19,9 +19,14 @@ from datetime import datetime, timedelta
 import tempfile 
 import os
 from typing import Dict, Tuple, Optional, List
-import kaleido
+import io
+import tempfile
+import os
+from PIL import Image
+import base64
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -135,6 +140,134 @@ def load_historical_data():
 # ============================================================================
 # UTILITY FUNCTIONS
 # ============================================================================
+
+# ============================================================================
+# PDF GENERATION FUNCTIONS (No Kaleido Required)
+# ============================================================================
+
+def convert_plotly_to_image(fig, width=500, height=270):
+    """Convert Plotly figure to PIL Image without kaleido."""
+    try:
+        svg_bytes = pio.to_image(fig, format='svg', width=width, height=height)
+        if svg_bytes is None:
+            raise ValueError("SVG export failed")
+        img = Image.open(io.BytesIO(svg_bytes))
+        return img
+    except Exception as e:
+        try:
+            from PIL import Image, ImageDraw
+            img = Image.new('RGB', (width, height), color='white')
+            draw = ImageDraw.Draw(img)
+            draw.text((10, 10), "Chart unavailable", fill='black')
+            return img
+        except:
+            return None
+
+def generate_pdf_report(city, selected_date, temperature, humidity, precip, feels_like, wind_speed, 
+                       suspension_level, confidence, is_prediction, var1_name, var2_name, 
+                       correlation_label, layman_text, fig_gauge=None, fig_map=None, 
+                       fig_hourly=None, fig_scatter=None):
+    """Generate PDF report without kaleido."""
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
+    pdf.add_page()
+    pdf.set_font("Arial", "B", size=18)
+    pdf.cell(0, 15, "HERALD v2.0 - Weather Analytics Report", ln=True, align="C")
+    pdf.set_font("Arial", "I", size=11)
+    pdf.cell(0, 8, f"Generated for {city} on {selected_date.strftime('%B %d, %Y')}", ln=True, align="C")
+    
+    pdf.ln(5)
+    
+    pdf.set_font("Arial", "B", size=14)
+    pdf.cell(0, 10, "1. Daily Summary", ln=True)
+    pdf.set_font("Arial", "", size=11)
+    
+    summary_text = f"""Temperature: {temperature:.1f}°C | Humidity: {humidity:.0f}% | Precipitation: {precip:.1f}mm
+Feels Like: {feels_like:.1f}°C | Wind Speed: {wind_speed:.1f} km/h
+Suspension Level: Level {suspension_level}
+{'Prediction Confidence: ' + f'{confidence*100:.1f}%' if is_prediction else 'Historical Record'}"""
+    pdf.multi_cell(0, 6, summary_text.strip())
+    
+    pdf.ln(5)
+    
+    if fig_gauge:
+        pdf.set_font("Arial", "B", size=14)
+        pdf.cell(0, 10, "2. Suspension Level & Metro Manila Map", ln=True)
+        
+        try:
+            img_gauge = convert_plotly_to_image(fig_gauge, width=90, height=65)
+            if img_gauge:
+                temp_gauge = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+                img_gauge.save(temp_gauge.name)
+                temp_gauge.close()
+                pdf.image(temp_gauge.name, x=10, y=pdf.get_y(), w=85)
+                os.remove(temp_gauge.name)
+        except:
+            pass
+        
+        try:
+            if fig_map:
+                img_map = convert_plotly_to_image(fig_map, width=90, height=65)
+                if img_map:
+                    temp_map = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+                    img_map.save(temp_map.name)
+                    temp_map.close()
+                    pdf.image(temp_map.name, x=110, y=pdf.get_y() - 65, w=85)
+                    os.remove(temp_map.name)
+        except:
+            pass
+        
+        pdf.ln(70)
+    
+    if fig_hourly:
+        pdf.set_font("Arial", "B", size=14)
+        pdf.cell(0, 10, "3. Hourly Weather Trends", ln=True)
+        
+        try:
+            img_hourly = convert_plotly_to_image(fig_hourly, width=500, height=270)
+            if img_hourly:
+                temp_hourly = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+                img_hourly.save(temp_hourly.name)
+                temp_hourly.close()
+                if pdf.get_y() > 200:
+                    pdf.add_page()
+                pdf.image(temp_hourly.name, x=10, y=pdf.get_y(), w=pdf.w - 20)
+                os.remove(temp_hourly.name)
+                pdf.ln(85)
+        except:
+            pass
+    
+    pdf.set_font("Arial", "B", size=14)
+    pdf.cell(0, 10, "4. Weather Variables & Impact Analysis", ln=True)
+    pdf.set_font("Arial", "", size=11)
+    
+    correlation_text = f"""Variable Pair: {var1_name} vs {var2_name}
+Correlation Pattern: {correlation_label}
+Analysis: {layman_text}"""
+    pdf.multi_cell(0, 6, correlation_text.strip())
+    
+    if fig_scatter:
+        try:
+            img_scatter = convert_plotly_to_image(fig_scatter, width=500, height=270)
+            if img_scatter:
+                temp_scatter = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+                img_scatter.save(temp_scatter.name)
+                temp_scatter.close()
+                if pdf.get_y() > 200:
+                    pdf.add_page()
+                pdf.ln(5)
+                pdf.image(temp_scatter.name, x=10, y=pdf.get_y(), w=pdf.w - 20)
+                os.remove(temp_scatter.name)
+        except:
+            pass
+    
+    pdf.set_y(-40)
+    pdf.set_font("Arial", "B", size=11)
+    pdf.cell(0, 6, "HERALD v2.0", ln=True, align="C")
+    pdf.set_font("Arial", "", size=9)
+    pdf.cell(0, 4, "Hydrometeorological Early Risk Assessment and Live Decision-support", ln=True, align="C")
+    pdf.cell(0, 4, "Powered by LightGBM ML + PAGASA Criteria", ln=True, align="C")
+    
+    return pdf
 
 def get_date_bounds():
     """Get the date bounds for date pickers"""
@@ -886,7 +1019,7 @@ def page_weather_analytics():
     # -------------------------------
     # 11. PDF REPORT DOWNLOAD
     # -------------------------------
-    _ = """
+    
     data = get_weather_and_suspension(datetime.combine(selected_date, datetime.min.time()), city, df, load_model_artifacts())
     if not data:
         st.warning("No data available for the selected date and city.")
@@ -906,79 +1039,48 @@ def page_weather_analytics():
     layman_text = layman        # From your layman descriptions lookup
 
     if st.button("Download PDF report"):
-        temp_imgs = []
         try:
-            # Export chart images to temporary files
-            for fig_obj in [fig_gauge, fig_map, fig, scatter]:
-                temp_img = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-                pio.write_image(fig_obj, temp_img.name, format='png', width=500, height=270, engine='kaleido')
-                temp_imgs.append(temp_img.name)
-                temp_img.close()
-
-            # Compose PDF with text AND images
-            pdf = FPDF(orientation="P", unit="mm", format="A4")
-            pdf.add_page()
-            pdf.set_font("Arial", "B", size=18)
-            pdf.cell(0, 15, "Herald Weather Analytics", ln=True, align="C")
-
-            # Daily summary section
-            pdf.set_font("Arial", "", 13)
-            pdf.cell(0, 8, "Daily Summary", ln=True)
-            pdf.multi_cell(0,8,
-                f"Temperature: {temperature:.1f}°C  Humidity: {humidity:.0f}%  Precipitation: {precip:.1f}mm")
-            pdf.multi_cell(0, 8, f"Feels Like: {feels_like:.1f}°C  Wind Speed: {wind_speed:.1f}km/h"   
-            )
-            pdf.ln(10)
-
-            # Suspension gauge & map side by side (keeping same y for both)
-            y_position = pdf.get_y()
-            pdf.image(temp_imgs[0], x=10, y=y_position, w=90)
-            pdf.image(temp_imgs[1], x=110, y=y_position, w=90)
-            pdf.ln(65)
-
-            # Hourly weather trends
-            pdf.set_font("Arial", "B", 13)
-            pdf.cell(0, 10, "Hourly Weather Trends", ln=True)
-            pdf.image(temp_imgs[2], x=10, y=pdf.get_y(), w=pdf.w - 20)
-            pdf.add_page()
-
-            # Impact analysis
-            pdf.set_font("Arial", "B", 13)
-            pdf.cell(0, 10, "Weather Variables & Impact Analysis", ln=True)
-            pdf.set_font("Arial", "", 11)
-            pdf.multi_cell(
-                0,
-                8,
-                f"Selected Variable Pair: {selected_variable_pair}\nCorrelation: {correlation_label}\nLayman: {layman_text}",
-            )
-            pdf.image(temp_imgs[3], x=10, y=pdf.get_y(), w=pdf.w - 20)
-            pdf.ln(50)
-
-            
-            pdf.set_y(-40)
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 6, "HERALD v2.0", ln=True, align="C")
-            pdf.set_font("Arial", "", 11)
-            pdf.cell(0, 6, "Hydrometeorological Early Risk Assessment and Live Decision-support", ln=True, align="C")
-            pdf.cell(0, 6, "Powered by LightGBM ML + PAGASA Criteria | Forecast weather data from Open-Meteo API", ln=True, align="C")
-
-        
-            temp_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-            pdf.output(temp_pdf.name)
-
-            with open(temp_pdf.name, "rb") as f:
-                pdf_bytes = f.read()
-
-
-            st.download_button("Download PDF", pdf_bytes, file_name="Weather_Analytics_Report.pdf", mime="application/pdf")
-
-
-        finally:
-                # Clean up temporary image files
-             for path in temp_imgs:
-                if os.path.exists(path):
-                    os.remove(path)
-    """
+            with st.spinner("Generating PDF report..."):
+                pdf = generate_pdf_report(
+                    city=city,
+                    selected_date=selected_date,
+                    temperature=temperature,
+                    humidity=humidity,
+                    precip=precip,
+                    feels_like=feels_like,
+                    wind_speed=wind_speed,
+                    suspension_level=level,
+                    confidence=conf if is_pred else None,
+                    is_prediction=is_pred,
+                    var1_name=selected_var1.replace("_", " ").title(),
+                    var2_name=selected_var2.replace("_", " ").title(),
+                    correlation_label=label,
+                    layman_text=layman,
+                    fig_gauge=fig_gauge,
+                    fig_map=fig_map,
+                    fig_hourly=fig,
+                    fig_scatter=scatter
+                )
+                
+                temp_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+                pdf.output(temp_pdf.name)
+                
+                with open(temp_pdf.name, "rb") as f:
+                    pdf_bytes = f.read()
+                
+                st.download_button(
+                    "Download PDF Report",
+                    pdf_bytes,
+                    file_name=f"HERALD_Report_{city}_{selected_date.strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf"
+                )
+                
+                os.remove(temp_pdf.name)
+                st.success("PDF generated successfully!")
+                
+        except Exception as e:
+            st.error(f"Error generating PDF: {str(e)}")
+    
 
 # ============================================================================
 # PAGE: HISTORICAL ANALYTICS
