@@ -669,25 +669,25 @@ def generate_suspension_memorandum_pdf(
     analysis_text = "Detailed Assessment:\n\n"
     
     if max_wind > 100:
-        analysis_text += f"⚠️ HIGH WIND CONDITIONS: Maximum wind speed of {max_wind:.1f} km/h exceeds safe outdoor operation thresholds. This level of wind poses significant hazard to students and outdoor workers.\n\n"
+        analysis_text += f"[HIGH WIND] WARNING: Maximum wind speed of {max_wind:.1f} km/h exceeds safe outdoor operation thresholds. This level of wind poses significant hazard to students and outdoor workers.\n\n"
     elif max_wind > 60:
-        analysis_text += f"⚠️ MODERATE WIND: Wind speeds reached {max_wind:.1f} km/h, which may require precautions for outdoor activities.\n\n"
+        analysis_text += f"[MODERATE WIND] WARNING: Wind speeds reached {max_wind:.1f} km/h, which may require precautions for outdoor activities.\n\n"
     
     if total_precip > 30:
-        analysis_text += f"⚠️ HEAVY RAINFALL DETECTED: Total precipitation of {total_precip:.1f} mm poses flooding and transportation hazards. Peak hourly rainfall reached {max_precip_hour:.1f} mm.\n\n"
+        analysis_text += f"[HEAVY RAINFALL] WARNING: Total precipitation of {total_precip:.1f} mm poses flooding and transportation hazards. Peak hourly rainfall reached {max_precip_hour:.1f} mm.\n\n"
     elif total_precip > 15:
-        analysis_text += f"⚠️ MODERATE RAINFALL: Total precipitation of {total_precip:.1f} mm may impact transportation and outdoor activities.\n\n"
+        analysis_text += f"[MODERATE RAINFALL] WARNING: Total precipitation of {total_precip:.1f} mm may impact transportation and outdoor activities.\n\n"
     
     if max_temp > 40:
-        analysis_text += f"🌡️ EXTREME HEAT: Apparent temperature may reach {max_temp:.1f}°C, posing health risks for outdoor activities.\n\n"
+        analysis_text += f"[EXTREME HEAT] WARNING: Apparent temperature may reach {max_temp:.1f}°C, posing health risks for outdoor activities.\n\n"
     elif max_temp > 35:
-        analysis_text += f"🌡️ HIGH TEMPERATURE: Temperature reached {max_temp:.1f}°C. Students and workers should take precautions during outdoor activities.\n\n"
+        analysis_text += f"[HIGH TEMPERATURE] WARNING: Temperature reached {max_temp:.1f}°C. Students and workers should take precautions during outdoor activities.\n\n"
     
     if avg_humidity > 80:
-        analysis_text += f"💧 HIGH HUMIDITY: Average humidity of {avg_humidity:.1f}% combined with temperature makes conditions feel more oppressive.\n\n"
+        analysis_text += f"[HIGH HUMIDITY] NOTE: Average humidity of {avg_humidity:.1f}% combined with temperature makes conditions feel more oppressive.\n\n"
     
     if total_precip == 0 and max_wind < 30 and max_temp < 35:
-        analysis_text += "✅ FAVORABLE CONDITIONS: Weather conditions appear relatively stable with no precipitation, manageable wind speeds, and moderate temperatures."
+        analysis_text += "[FAVORABLE CONDITIONS] Weather conditions appear relatively stable with no precipitation, manageable wind speeds, and moderate temperatures."
     
     pdf.multi_cell(0, 5, analysis_text)
     pdf.ln(2)
