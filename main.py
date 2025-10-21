@@ -967,7 +967,7 @@ def page_weather_analytics():
             pdf.cell(0, 6, "HERALD v2.0", ln=True, align="C")
             pdf.set_font("Arial", "", 11)
             pdf.cell(0, 6, "Hydrometeorological Early Risk Assessment and Live Decision-support", ln=True, align="C")
-            pdf.cell(0, 6, "Powered by CatBoost ML + PAGASA Criteria | Forecast weather data from Open-Meteo API", ln=True, align="C")
+            pdf.cell(0, 6, "Powered by LightGBM ML + PAGASA Criteria | Forecast weather data from Open-Meteo API", ln=True, align="C")
 
         
             temp_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
@@ -1709,7 +1709,7 @@ def main():
         
         st.markdown("---")
         
-        st.markdown("<div style='text-align: center; color: #666; padding: 20px;'><p><strong>HERALD v2.0</strong></p><p>Hydrometeorological Early Risk Assessment and Live Decision-support</p><p>Powered by CatBoost ML + PAGASA Criteria | Forecast weather data from Open-Meteo API</p></div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align: center; color: #666; padding: 20px;'><p><strong>HERALD v2.0</strong></p><p>Hydrometeorological Early Risk Assessment and Live Decision-support</p><p>Powered by LightGBM ML + PAGASA Criteria | Forecast weather data from Open-Meteo API</p></div>", unsafe_allow_html=True)
     
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
