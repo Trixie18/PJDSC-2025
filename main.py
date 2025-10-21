@@ -503,10 +503,6 @@ def page_home():
             st.success("Historical Mode - Using Actual Data")
         else:
             st.info("Forecast Mode - Using Open-Meteo API")
-        
-        if st.button("Change to Today", use_container_width=True):
-            selected_date = datetime.now().date()
-            st.rerun()
     
     
     st.markdown(f"<div style='padding: 15px; background-color: #009cdf; border-radius: 10px; margin-bottom: 20px;'><h3 style='margin: 0; color: #FFFFFF;font-size: 40px'> 🗺️ {city} |🧭 {selected_date.strftime('%B %d, %Y')}</h3></div>", unsafe_allow_html=True)
@@ -640,9 +636,6 @@ def page_weather_analytics():
         else:
             st.info("Forecast Mode - Using Open-Meteo API")
         
-        if st.button("Change to Today", use_container_width=True, key='analytics_today_btn'):
-            selected_date = datetime.now().date()
-            st.rerun()
     
     data = get_weather_and_suspension(datetime.combine(selected_date, datetime.min.time()), city, df, load_model_artifacts())
     
