@@ -475,7 +475,7 @@ def fetch_all_cities_parallel(selected_date: datetime, df: pd.DataFrame, artifac
 
 def page_home():
     st.markdown(
-    "<h1 style='font-size: 60px;'>🌤️HERALD v2.0</h1>",
+    "<h1 style='font-size: 50px;'>🌤️HERALD v2.0</h1>",
     unsafe_allow_html=True
 )
     
@@ -612,7 +612,7 @@ def page_home():
 
 def page_weather_analytics():
     st.markdown(
-    "<h1 style='font-size: 60px;'>🌦️Weather Analytics</h1>",
+    "<h1 style='font-size: 40px;'>🌦️Weather Analytics</h1>",
     unsafe_allow_html=True
 )
     
@@ -993,7 +993,7 @@ def page_weather_analytics():
 
 def page_historical_analytics():
     st.markdown(
-    "<h1 style='font-size: 60px;'>⌛Historical Analytics</h1>",
+    "<h1 style='font-size: 40px;'>⌛Historical Analytics</h1>",
     unsafe_allow_html=True
 )
     
@@ -1195,7 +1195,7 @@ def page_historical_analytics():
 
 def page_what_if():
     st.markdown(
-    "<h1 style='font-size: 60px;'>🤔💭What-If Scenario Predictor</h1>",
+    "<h1 style='font-size: 40px;'>🤔💭What-If Scenario Predictor</h1>",
     unsafe_allow_html=True
 )
     st.markdown("### Adjust weather parameters to see predicted suspension levels based on ML model and PAGASA criteria")
@@ -1289,7 +1289,7 @@ def page_what_if():
 
 def page_about():
     st.markdown(
-    "<h1 style='font-size: 60px;'>⚙️About this System</h1>",
+    "<h1 style='font-size: 40px;'>⚙️About this System</h1>",
     unsafe_allow_html=True
 )
     
