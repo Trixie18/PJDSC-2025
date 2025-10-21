@@ -475,7 +475,7 @@ def fetch_all_cities_parallel(selected_date: datetime, df: pd.DataFrame, artifac
 
 def page_home():
     st.markdown(
-    "<h1 style='font-size: 80px;'>🌤️HERALD v2.0</h1>",
+    "<h1 style='font-size: 60px;'>🌤️HERALD v2.0</h1>",
     unsafe_allow_html=True
 )
     
@@ -509,7 +509,7 @@ def page_home():
             st.rerun()
     
     
-    st.markdown(f"<div style='padding: 15px; background-color: #009cdf; border-radius: 10px; margin-bottom: 20px;'><h3 style='margin: 0; color: #FFFFFF;font-size: 50px'> 🗺️ {city} |🧭 {selected_date.strftime('%B %d, %Y')}</h3></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='padding: 15px; background-color: #009cdf; border-radius: 10px; margin-bottom: 20px;'><h3 style='margin: 0; color: #FFFFFF;font-size: 40px'> 🗺️ {city} |🧭 {selected_date.strftime('%B %d, %Y')}</h3></div>", unsafe_allow_html=True)
     
     data = get_weather_and_suspension(datetime.combine(selected_date, datetime.min.time()), city, df, artifacts)
     
@@ -612,7 +612,7 @@ def page_home():
 
 def page_weather_analytics():
     st.markdown(
-    "<h1 style='font-size: 80px;'>🌦️Weather Analytics</h1>",
+    "<h1 style='font-size: 60px;'>🌦️Weather Analytics</h1>",
     unsafe_allow_html=True
 )
     
@@ -836,7 +836,7 @@ def page_weather_analytics():
 
     with col1:
         selected_var1 = st.selectbox("Variable 1", numeric_cols, key="var1")
-        selected_var2 = st.selectbox("Variable 2", numeric_cols, key="var2")
+        selected_var2 = st.selectbox("Variable 2", numeric_cols, key="var2", index=1)
         if selected_var1 == selected_var2:
             st.error("Please select two different variables to compare.")
             st.stop()
@@ -993,7 +993,7 @@ def page_weather_analytics():
 
 def page_historical_analytics():
     st.markdown(
-    "<h1 style='font-size: 80px;'>⌛Historical Analytics</h1>",
+    "<h1 style='font-size: 60px;'>⌛Historical Analytics</h1>",
     unsafe_allow_html=True
 )
     
@@ -1171,7 +1171,7 @@ def page_historical_analytics():
 
 def page_what_if():
     st.markdown(
-    "<h1 style='font-size: 80px;'>🤔💭What-If Scenario Predictor</h1>",
+    "<h1 style='font-size: 60px;'>🤔💭What-If Scenario Predictor</h1>",
     unsafe_allow_html=True
 )
     st.markdown("### Adjust weather parameters to see predicted suspension levels based on ML model and PAGASA criteria")
@@ -1265,7 +1265,7 @@ def page_what_if():
 
 def page_about():
     st.markdown(
-    "<h1 style='font-size: 80px;'>⚙️About this System</h1>",
+    "<h1 style='font-size: 60px;'>⚙️About this System</h1>",
     unsafe_allow_html=True
 )
     
@@ -1685,9 +1685,24 @@ def main():
         }
 
         with st.sidebar:
-            # Page Navigation
-            st.markdown("### Page Navigation")
-            selected_page = st.radio("Navigate", list(pages.keys()), key="page_navigation")
+            # Initialize session state for selected page if not exists
+            if 'selected_page' not in st.session_state:
+                st.session_state.selected_page = "Home"
+            
+            # Page Navigation with expander
+            with st.expander("📍 Page Navigation", expanded=True):
+                # Create clickable menu items
+                for page_name in pages.keys():
+                    if st.button(
+                        page_name, 
+                        key=f"nav_{page_name}",
+                        use_container_width=True,
+                        type="primary" if st.session_state.selected_page == page_name else "secondary"
+                    ):
+                        st.session_state.selected_page = page_name
+                        st.rerun()
+            
+            selected_page = st.session_state.selected_page
 
         
         pages[selected_page]()
