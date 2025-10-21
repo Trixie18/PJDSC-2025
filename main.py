@@ -561,6 +561,73 @@ async def export_plotly_to_image(fig, format='png'):
         return None
 
 
+def generate_simple_svg_chart(title: str, labels: List[str], values: List[float], chart_type: str = "bar") -> str:
+    """Generate a simple SVG chart without external dependencies"""
+    if not values or len(values) == 0:
+        return ""
+    
+    max_val = max(values) if max(values) > 0 else 1
+    width, height = 600, 300
+    margin_left, margin_bottom = 60, 50
+    plot_width = width - margin_left - 20
+    plot_height = height - margin_bottom - 30
+    
+    svg = f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">\n'
+    
+    # Background
+    svg += f'<rect width="{width}" height="{height}" fill="white"/>\n'
+    
+    # Title
+    svg += f'<text x="{width/2}" y="20" font-size="16" font-weight="bold" text-anchor="middle">{title}</text>\n'
+    
+    # Axes
+    svg += f'<line x1="{margin_left}" y1="{height-margin_bottom}" x2="{width-20}" y2="{height-margin_bottom}" stroke="black" stroke-width="2"/>\n'
+    svg += f'<line x1="{margin_left}" y1="30" x2="{margin_left}" y2="{height-margin_bottom}" stroke="black" stroke-width="2"/>\n'
+    
+    # Grid lines and y-axis labels
+    for i in range(6):
+        y_val = (max_val / 5) * i
+        y_pos = height - margin_bottom - (plot_height * i / 5)
+        svg += f'<line x1="{margin_left}" y1="{y_pos}" x2="{width-20}" y2="{y_pos}" stroke="#eee" stroke-width="1"/>\n'
+        svg += f'<text x="{margin_left-10}" y="{y_pos+5}" font-size="10" text-anchor="end">{y_val:.1f}</text>\n'
+    
+    # Plot data
+    bar_width = plot_width / len(values) * 0.7
+    spacing = plot_width / len(values)
+    
+    for idx, (label, value) in enumerate(zip(labels, values)):
+        x_pos = margin_left + spacing * idx + spacing / 2
+        bar_height = (value / max_val) * plot_height
+        bar_y = height - margin_bottom - bar_height
+        
+        # Determine color based on value thresholds
+        if value >= max_val * 0.7:
+            color = "#ef4444"
+        elif value >= max_val * 0.4:
+            color = "#f97316"
+        elif value >= max_val * 0.2:
+            color = "#fbbf24"
+        else:
+            color = "#10b981"
+        
+        # Draw bar
+        svg += f'<rect x="{x_pos - bar_width/2}" y="{bar_y}" width="{bar_width}" height="{bar_height}" fill="{color}" stroke="black" stroke-width="1"/>\n'
+        
+        # Value label on bar
+        svg += f'<text x="{x_pos}" y="{bar_y - 5}" font-size="9" text-anchor="middle" font-weight="bold">{value:.1f}</text>\n'
+        
+        # X-axis label
+        svg += f'<text x="{x_pos}" y="{height - margin_bottom + 20}" font-size="10" text-anchor="middle">{label}</text>\n'
+    
+    svg += '</svg>\n'
+    return svg
+
+
+def svg_to_bytes(svg_string: str) -> bytes:
+    """Convert SVG string to bytes for PDF embedding"""
+    return svg_string.encode('utf-8')
+
+
 def generate_suspension_memorandum_pdf(
     weather_data: Dict,
     city: str,
@@ -604,144 +671,14 @@ def generate_suspension_memorandum_pdf(
     
     pdf.add_disclaimer()
     
-    # Add Annex page with charts
+    # Add Annex page
     pdf.add_page()
     pdf.set_font("Arial", "B", 12)
     pdf.cell(0, 10, "ANNEX: WEATHER ANALYTICS SUPPORT", ln=True)
     pdf.set_font("Arial", "", 10)
     pdf.ln(3)
     
-    temp_img_paths = []
-    
-    try:
-        # Chart 1: Hourly Weather Trends (exact same as weather analytics page)
-        fig_hourly = make_subplots(
-            rows=3, cols=1,
-            subplot_titles=('Temperature (C)', 'Precipitation (mm)', 'Wind Speed (km/h)'),
-            vertical_spacing=0.1
-        )
-        
-        fig_hourly.add_trace(
-            go.Scatter(x=hourly_df['date'], y=hourly_df['temperature_2m'],
-                      name='Temperature', line=dict(color='#ef4444', width=2),
-                      fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.1)'),
-            row=1, col=1
-        )
-        fig_hourly.add_trace(
-            go.Bar(x=hourly_df['date'], y=hourly_df['precipitation'],
-                  name='Precipitation', marker_color='#3b82f6'),
-            row=2, col=1
-        )
-        fig_hourly.add_trace(
-            go.Scatter(x=hourly_df['date'], y=hourly_df['windspeed_10m'],
-                      name='Wind Speed', line=dict(color='#10b981', width=2)),
-            row=3, col=1
-        )
-        
-        fig_hourly.update_xaxes(title_text="Time", row=3, col=1)
-        fig_hourly.update_layout(height=600, showlegend=False, 
-                                margin=dict(l=50, r=20, t=80, b=50))
-        
-        img_path1 = asyncio.run(export_plotly_to_image(fig_hourly, 'png'))
-        if img_path1:
-            temp_img_paths.append(img_path1)
-            pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 6, "A. Hourly Weather Trends", ln=True)
-            pdf.ln(2)
-            try:
-                pdf.image(img_path1, x=10, w=190)
-                pdf.ln(100)
-            except Exception as e:
-                pdf.set_font("Arial", "I", 9)
-                pdf.cell(0, 5, f"[Chart could not be embedded: {str(e)}]", ln=True)
-                pdf.ln(2)
-        
-        # Chart 2: ML Prediction probabilities
-        probs = ml_prediction['probabilities']
-        if len(probs) < 5:
-            probs = list(probs) + [0.0] * (5 - len(probs))
-        else:
-            probs = list(probs)[:5]
-        
-        prob_colors = [SUSPENSION_LEVELS[i]['color'] for i in range(len(probs))]
-        
-        fig_probs = go.Figure(go.Bar(
-            x=[f"Level {i}" for i in range(len(probs))],
-            y=[p * 100 for p in probs],
-            marker_color=prob_colors,
-            text=[f"{p*100:.1f}%" for p in probs],
-            textposition='auto'
-        ))
-        fig_probs.update_layout(
-            title="ML Prediction Probability Distribution",
-            xaxis_title="Suspension Level",
-            yaxis_title="Probability (%)",
-            height=400,
-            margin=dict(l=50, r=20, t=80, b=50)
-        )
-        
-        img_path2 = asyncio.run(export_plotly_to_image(fig_probs, 'png'))
-        if img_path2:
-            temp_img_paths.append(img_path2)
-            pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 6, "B. ML Prediction Confidence", ln=True)
-            pdf.ln(2)
-            try:
-                pdf.image(img_path2, x=10, w=190)
-                pdf.ln(60)
-            except Exception as e:
-                pdf.set_font("Arial", "I", 9)
-                pdf.cell(0, 5, f"[Chart could not be embedded: {str(e)}]", ln=True)
-                pdf.ln(2)
-        
-        # Chart 3: Weather-Suspension Correlation boxes
-        col1_charts = []
-        
-        # Precipitation by suspension level
-        fig_precip = go.Figure()
-        for level in range(5):
-            fig_precip.add_trace(go.Box(
-                y=[weather_data['precipitation']],
-                name=f"Level {level}",
-                marker_color=SUSPENSION_LEVELS[level]['color']
-            ))
-        fig_precip.update_layout(
-            title="Precipitation Patterns",
-            yaxis_title="Precipitation (mm)",
-            height=350,
-            margin=dict(l=50, r=20, t=80, b=50)
-        )
-        
-        img_path3 = asyncio.run(export_plotly_to_image(fig_precip, 'png'))
-        if img_path3:
-            temp_img_paths.append(img_path3)
-            pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 6, "C. Weather Correlation Analysis", ln=True)
-            pdf.ln(2)
-            try:
-                pdf.image(img_path3, x=10, w=190)
-                pdf.ln(60)
-            except Exception as e:
-                pdf.set_font("Arial", "I", 9)
-                pdf.cell(0, 5, f"[Chart could not be embedded: {str(e)}]", ln=True)
-                pdf.ln(2)
-        
-    except Exception as e:
-        st.warning(f"Chart generation error: {str(e)}")
-        pdf.set_font("Arial", "I", 9)
-        pdf.multi_cell(0, 5, f"[Charts could not be generated: {str(e)}]")
-    
-    # Add summary tables
-    pdf.set_font("Arial", "B", 10)
-    pdf.cell(0, 6, "D. Weather Statistics Summary", ln=True)
-    pdf.ln(1)
-    pdf.set_font("Arial", "", 9)
-    
-    col_width = (pdf.WIDTH - 30) / 2
-    pdf.set_x(20)
-    pdf.cell(col_width - 5, 5, "Metric", border=1, fill=True)
-    pdf.cell(col_width - 5, 5, "Value", border=1, fill=True, ln=True)
-    
+    # Extract key statistics
     max_temp = hourly_df['temperature_2m'].max()
     min_temp = hourly_df['temperature_2m'].min()
     avg_temp = hourly_df['temperature_2m'].mean()
@@ -750,6 +687,89 @@ def generate_suspension_memorandum_pdf(
     total_precip = hourly_df['precipitation'].sum()
     max_precip_hour = hourly_df['precipitation'].max()
     avg_humidity = hourly_df['relativehumidity_2m'].mean()
+    
+    # A. Hourly Weather Trends Analysis
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "A. Hourly Weather Trends Summary", ln=True)
+    pdf.ln(2)
+    pdf.set_font("Arial", "", 9)
+    pdf.multi_cell(0, 5, 
+        "The following analysis summarizes hourly temperature, precipitation, and wind speed patterns throughout the selected date. "
+        "These metrics are critical indicators for determining suspension levels as they directly impact safety conditions "
+        "for students and workers.")
+    pdf.ln(2)
+    
+    # Create SVG charts
+    try:
+        # Temperature chart
+        temp_hours = list(range(min(len(hourly_df), 24)))
+        temp_values = hourly_df['temperature_2m'].head(len(temp_hours)).tolist()
+        temp_svg = generate_simple_svg_chart(
+            "Temperature (°C) - Hourly Trend",
+            [f"{h}:00" for h in temp_hours],
+            temp_values
+        )
+        
+        # Precipitation chart
+        precip_hours = list(range(min(len(hourly_df), 24)))
+        precip_values = hourly_df['precipitation'].head(len(precip_hours)).tolist()
+        precip_svg = generate_simple_svg_chart(
+            "Precipitation (mm) - Hourly Trend",
+            [f"{h}:00" for h in precip_hours],
+            precip_values
+        )
+        
+        # Wind speed chart
+        wind_hours = list(range(min(len(hourly_df), 24)))
+        wind_values = hourly_df['windspeed_10m'].head(len(wind_hours)).tolist()
+        wind_svg = generate_simple_svg_chart(
+            "Wind Speed (km/h) - Hourly Trend",
+            [f"{h}:00" for h in wind_hours],
+            wind_values
+        )
+        
+        # Save SVGs to temporary files and embed
+        temp_paths = []
+        
+        for svg_content, chart_name in [(temp_svg, "temp"), (precip_svg, "precip"), (wind_svg, "wind")]:
+            if svg_content:
+                temp_path = tempfile.NamedTemporaryFile(suffix=".svg", delete=False).name
+                with open(temp_path, 'w') as f:
+                    f.write(svg_content)
+                temp_paths.append(temp_path)
+                
+                try:
+                    # Add chart to PDF - use image function for SVG
+                    pdf.image(temp_path, x=10, w=190)
+                    pdf.ln(70)
+                except Exception as e:
+                    pdf.set_font("Arial", "I", 9)
+                    pdf.multi_cell(0, 5, f"[Chart '{chart_name}' could not be embedded in PDF]")
+                    pdf.ln(2)
+        
+        # Clean up SVG files
+        for path in temp_paths:
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except:
+                pass
+                
+    except Exception as e:
+        pdf.set_font("Arial", "I", 9)
+        pdf.multi_cell(0, 5, f"[Charts could not be generated: {str(e)}]")
+        pdf.ln(2)
+    
+    # Create text-based summary table
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "B. Weather Statistics Summary", ln=True)
+    pdf.ln(1)
+    pdf.set_font("Arial", "", 9)
+    
+    col_width = (pdf.WIDTH - 30) / 2
+    pdf.set_x(20)
+    pdf.cell(col_width - 5, 5, "Metric", border=1, fill=True)
+    pdf.cell(col_width - 5, 5, "Value", border=1, fill=True, ln=True)
     
     metrics = [
         ("Min Temperature", f"{min_temp:.1f}C"),
@@ -769,28 +789,87 @@ def generate_suspension_memorandum_pdf(
     
     pdf.ln(3)
     
-    # Data sources
+    # C. Weather Pattern Analysis
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "C. Weather Pattern Analysis", ln=True)
+    pdf.ln(2)
+    pdf.set_font("Arial", "", 9)
+    
+    analysis_text = "Detailed Assessment:\n\n"
+    
+    if max_wind > 100:
+        analysis_text += f"[HIGH WIND] WARNING: Maximum wind speed of {max_wind:.1f} km/h exceeds safe outdoor operation thresholds. This level of wind poses significant hazard to students and outdoor workers.\n\n"
+    elif max_wind > 60:
+        analysis_text += f"[MODERATE WIND] WARNING: Wind speeds reached {max_wind:.1f} km/h, which may require precautions for outdoor activities.\n\n"
+    
+    if total_precip > 30:
+        analysis_text += f"[HEAVY RAINFALL] WARNING: Total precipitation of {total_precip:.1f} mm poses flooding and transportation hazards. Peak hourly rainfall reached {max_precip_hour:.1f} mm.\n\n"
+    elif total_precip > 15:
+        analysis_text += f"[MODERATE RAINFALL] WARNING: Total precipitation of {total_precip:.1f} mm may impact transportation and outdoor activities.\n\n"
+    
+    if max_temp > 40:
+        analysis_text += f"[EXTREME HEAT] WARNING: Apparent temperature may reach {max_temp:.1f}C, posing health risks for outdoor activities.\n\n"
+    elif max_temp > 35:
+        analysis_text += f"[HIGH TEMPERATURE] WARNING: Temperature reached {max_temp:.1f}C. Students and workers should take precautions during outdoor activities.\n\n"
+    
+    if avg_humidity > 80:
+        analysis_text += f"[HIGH HUMIDITY] NOTE: Average humidity of {avg_humidity:.1f}% combined with temperature makes conditions feel more oppressive.\n\n"
+    
+    if total_precip == 0 and max_wind < 30 and max_temp < 35:
+        analysis_text += "[FAVORABLE CONDITIONS] Weather conditions appear relatively stable with no precipitation, manageable wind speeds, and moderate temperatures."
+    
+    pdf.multi_cell(0, 5, analysis_text)
+    pdf.ln(2)
+    
+    # D. Machine Learning Model Prediction Details
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "D. Machine Learning Model Confidence Breakdown", ln=True)
+    pdf.ln(2)
+    pdf.set_font("Arial", "", 9)
+    
+    pdf.multi_cell(0, 5,
+        "The ML model prediction probabilities for each suspension level are shown in the table below. "
+        "The model was trained on historical weather data and suspension records from Metro Manila using LightGBM classifier.")
+    pdf.ln(2)
+    
+    probs = ml_prediction['probabilities']
+    if len(probs) < 5:
+        probs = list(probs) + [0.0] * (5 - len(probs))
+    else:
+        probs = list(probs)[:5]
+    
+    # Probability table
+    pdf.set_font("Arial", "B", 9)
+    col_width_prob = (pdf.WIDTH - 30) / 2
+    pdf.set_x(20)
+    pdf.cell(col_width_prob - 5, 5, "Suspension Level", border=1, fill=True)
+    pdf.cell(col_width_prob - 5, 5, "Probability", border=1, fill=True, ln=True)
+    
+    pdf.set_font("Arial", "", 9)
+    level_names = ["No Suspension", "Preschool Only", "Preschool + Elementary", "All Levels (Public)", "All Levels + Work"]
+    for i, prob in enumerate(probs):
+        pdf.set_x(20)
+        level_label = level_names[i] if i < len(level_names) else f"Level {i}"
+        pdf.cell(col_width_prob - 5, 5, level_label, border=1)
+        pdf.cell(col_width_prob - 5, 5, f"{prob*100:.1f}%", border=1, ln=True)
+    
+    pdf.ln(3)
+    
+    # E. Data Sources
     pdf.set_font("Arial", "B", 10)
     pdf.cell(0, 6, "E. Data Sources & Methodology", ln=True)
     pdf.ln(2)
     pdf.set_font("Arial", "", 9)
     pdf.multi_cell(0, 5,
         "Weather Data: Open-Meteo API (for forecasts) / Historical Dataset (for past dates)\n"
-        "ML Model: LightGBM Classifier with hyperparameter optimization\n"
+        "ML Model: LightGBM Classifier with hyperparameter optimization and class balancing\n"
         "PAGASA Criteria: Official Philippine Atmospheric, Geophysical and Astronomical Services Administration guidelines\n"
-        "Cities Covered: All 17 cities of Metro Manila with geographic coordinates")
+        "Cities Covered: All 17 cities of Metro Manila with geographic coordinates\n"
+        "Training Period: 2020-2025 with stratified cross-validation")
     
     # Save PDF
     output_path = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
     pdf.output(output_path)
-    
-    # Clean up temporary image files
-    for img_path in temp_img_paths:
-        try:
-            if os.path.exists(img_path):
-                os.remove(img_path)
-        except:
-            pass
     
     return output_path
 
