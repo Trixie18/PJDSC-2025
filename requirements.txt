@@ -1,5 +1,5 @@
 tqdm
-playwright==1.40.0
+playwright
 streamlit
 pandas
 numpy
@@ -9,4 +9,3 @@ joblib
 requests
 lightgbm
 scikit-learn
---upgrade pip
