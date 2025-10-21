@@ -19,14 +19,9 @@ from datetime import datetime, timedelta
 import tempfile 
 import os
 from typing import Dict, Tuple, Optional, List
-import io
-import tempfile
-import os
-from PIL import Image
-import base64
+import kaleido
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
-
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -83,9 +78,9 @@ PAGASA_CRITERIA = {
         {'signal': 4, 'wind_min': 150, 'wind_max': 300, 'suspension': 4, 'description': 'TCWS 4: Winds 150-250 km/h'},
     ],
     'rainfall': [
-        {'level': 1, 'precip': 7.5, 'suspension': 1, 'description': 'Light Rainfall Warning: ≥7.5 mm/hour'},
-        {'level': 2, 'precip': 15, 'suspension': 3, 'description': 'Moderate Rainfall Warning: ≥15 mm/hour'},
-        {'level': 3, 'precip': 30, 'suspension': 4, 'description': 'Heavy Rainfall Warning: ≥30 mm/hour'},
+        {'level': 1, 'precip': 7.5, 'suspension': 1, 'description': 'Light Rainfall Warning: >=7.5 mm/hour'},
+        {'level': 2, 'precip': 15, 'suspension': 3, 'description': 'Moderate Rainfall Warning: >=15 mm/hour'},
+        {'level': 3, 'precip': 30, 'suspension': 4, 'description': 'Heavy Rainfall Warning: >=30 mm/hour'},
     ],
     'heat_index': [
         {'level': 1, 'temp': 41, 'suspension': 3, 'description': 'Heat Index 41°C: Outdoor activities suspended'},
@@ -140,134 +135,6 @@ def load_historical_data():
 # ============================================================================
 # UTILITY FUNCTIONS
 # ============================================================================
-
-# ============================================================================
-# PDF GENERATION FUNCTIONS (No Kaleido Required)
-# ============================================================================
-
-def convert_plotly_to_image(fig, width=500, height=270):
-    """Convert Plotly figure to PIL Image without kaleido."""
-    try:
-        svg_bytes = pio.to_image(fig, format='svg', width=width, height=height)
-        if svg_bytes is None:
-            raise ValueError("SVG export failed")
-        img = Image.open(io.BytesIO(svg_bytes))
-        return img
-    except Exception as e:
-        try:
-            from PIL import Image, ImageDraw
-            img = Image.new('RGB', (width, height), color='white')
-            draw = ImageDraw.Draw(img)
-            draw.text((10, 10), "Chart unavailable", fill='black')
-            return img
-        except:
-            return None
-
-def generate_pdf_report(city, selected_date, temperature, humidity, precip, feels_like, wind_speed, 
-                       suspension_level, confidence, is_prediction, var1_name, var2_name, 
-                       correlation_label, layman_text, fig_gauge=None, fig_map=None, 
-                       fig_hourly=None, fig_scatter=None):
-    """Generate PDF report without kaleido."""
-    pdf = FPDF(orientation="P", unit="mm", format="A4")
-    pdf.add_page()
-    pdf.set_font("Arial", "B", size=18)
-    pdf.cell(0, 15, "HERALD v2.0 - Weather Analytics Report", ln=True, align="C")
-    pdf.set_font("Arial", "I", size=11)
-    pdf.cell(0, 8, f"Generated for {city} on {selected_date.strftime('%B %d, %Y')}", ln=True, align="C")
-    
-    pdf.ln(5)
-    
-    pdf.set_font("Arial", "B", size=14)
-    pdf.cell(0, 10, "1. Daily Summary", ln=True)
-    pdf.set_font("Arial", "", size=11)
-    
-    summary_text = f"""Temperature: {temperature:.1f}°C | Humidity: {humidity:.0f}% | Precipitation: {precip:.1f}mm
-Feels Like: {feels_like:.1f}°C | Wind Speed: {wind_speed:.1f} km/h
-Suspension Level: Level {suspension_level}
-{'Prediction Confidence: ' + f'{confidence*100:.1f}%' if is_prediction else 'Historical Record'}"""
-    pdf.multi_cell(0, 6, summary_text.strip())
-    
-    pdf.ln(5)
-    
-    if fig_gauge:
-        pdf.set_font("Arial", "B", size=14)
-        pdf.cell(0, 10, "2. Suspension Level & Metro Manila Map", ln=True)
-        
-        try:
-            img_gauge = convert_plotly_to_image(fig_gauge, width=90, height=65)
-            if img_gauge:
-                temp_gauge = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-                img_gauge.save(temp_gauge.name)
-                temp_gauge.close()
-                pdf.image(temp_gauge.name, x=10, y=pdf.get_y(), w=85)
-                os.remove(temp_gauge.name)
-        except:
-            pass
-        
-        try:
-            if fig_map:
-                img_map = convert_plotly_to_image(fig_map, width=90, height=65)
-                if img_map:
-                    temp_map = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-                    img_map.save(temp_map.name)
-                    temp_map.close()
-                    pdf.image(temp_map.name, x=110, y=pdf.get_y() - 65, w=85)
-                    os.remove(temp_map.name)
-        except:
-            pass
-        
-        pdf.ln(70)
-    
-    if fig_hourly:
-        pdf.set_font("Arial", "B", size=14)
-        pdf.cell(0, 10, "3. Hourly Weather Trends", ln=True)
-        
-        try:
-            img_hourly = convert_plotly_to_image(fig_hourly, width=500, height=270)
-            if img_hourly:
-                temp_hourly = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-                img_hourly.save(temp_hourly.name)
-                temp_hourly.close()
-                if pdf.get_y() > 200:
-                    pdf.add_page()
-                pdf.image(temp_hourly.name, x=10, y=pdf.get_y(), w=pdf.w - 20)
-                os.remove(temp_hourly.name)
-                pdf.ln(85)
-        except:
-            pass
-    
-    pdf.set_font("Arial", "B", size=14)
-    pdf.cell(0, 10, "4. Weather Variables & Impact Analysis", ln=True)
-    pdf.set_font("Arial", "", size=11)
-    
-    correlation_text = f"""Variable Pair: {var1_name} vs {var2_name}
-Correlation Pattern: {correlation_label}
-Analysis: {layman_text}"""
-    pdf.multi_cell(0, 6, correlation_text.strip())
-    
-    if fig_scatter:
-        try:
-            img_scatter = convert_plotly_to_image(fig_scatter, width=500, height=270)
-            if img_scatter:
-                temp_scatter = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-                img_scatter.save(temp_scatter.name)
-                temp_scatter.close()
-                if pdf.get_y() > 200:
-                    pdf.add_page()
-                pdf.ln(5)
-                pdf.image(temp_scatter.name, x=10, y=pdf.get_y(), w=pdf.w - 20)
-                os.remove(temp_scatter.name)
-        except:
-            pass
-    
-    pdf.set_y(-40)
-    pdf.set_font("Arial", "B", size=11)
-    pdf.cell(0, 6, "HERALD v2.0", ln=True, align="C")
-    pdf.set_font("Arial", "", size=9)
-    pdf.cell(0, 4, "Hydrometeorological Early Risk Assessment and Live Decision-support", ln=True, align="C")
-    pdf.cell(0, 4, "Powered by LightGBM ML + PAGASA Criteria", ln=True, align="C")
-    
-    return pdf
 
 def get_date_bounds():
     """Get the date bounds for date pickers"""
@@ -487,6 +354,389 @@ def get_weather_and_suspension(selected_date: datetime, city: str, df: pd.DataFr
             prediction = predict_suspension(forecast_data['weather_data'], city, forecast_data['hourly_data'], artifacts)
             return {**forecast_data, **prediction}
         return None
+
+# ============================================================================
+# PDF GENERATION FUNCTIONS
+# ============================================================================
+
+class SuspensionMemorandumPDF(FPDF):
+    """Custom PDF class for suspension memorandum"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.WIDTH = 210
+        self.HEIGHT = 297
+        
+    def header(self):
+        """Generate header with official letterhead"""
+        self.set_font("Arial", "B", 11)
+        self.cell(0, 5, "METROPOLITAN MANILA DEVELOPMENT AUTHORITY", ln=True, align="C")
+        self.set_font("Arial", "", 10)
+        self.cell(0, 4, "Office of the Chairperson", ln=True, align="C")
+        self.ln(3)
+        self.line(15, 25, 195, 25)
+        self.ln(5)
+    
+    def footer(self):
+        """Generate footer"""
+        self.set_y(-15)
+        self.set_font("Arial", "I", 8)
+        self.cell(0, 10, f"Page {self.page_no()} | HERALD v2.0 - Hydrometeorological Early Risk Assessment and Live Decision-support", 
+                 align="C")
+    
+    def add_memo_title(self, title: str):
+        """Add memorandum title"""
+        self.set_font("Arial", "B", 13)
+        self.ln(5)
+        self.cell(0, 8, title, ln=True, align="C")
+        self.ln(3)
+    
+    def add_memo_recipients(self, city: str, date: datetime):
+        """Add TO/FROM fields"""
+        self.set_font("Arial", "", 10)
+        self.cell(0, 6, "TO:        School Heads, Parents, Students, and Office Workers", ln=True)
+        self.cell(0, 6, f"           in {city}", ln=True)
+        self.ln(2)
+        self.cell(0, 6, f"FROM:      HERALD Suspension Prediction System", ln=True)
+        self.ln(2)
+        self.cell(0, 6, f"DATE:      {date.strftime('%B %d, %Y')}", ln=True)
+        self.ln(5)
+    
+    def add_suspension_announcement(self, level: int, level_name: str, risk: str):
+        """Add main suspension announcement"""
+        colors = {0: (16, 185, 129), 1: (251, 191, 36), 2: (249, 115, 22), 
+                 3: (239, 68, 68), 4: (153, 27, 27)}
+        rgb = colors.get(level, (100, 100, 100))
+        
+        self.set_fill_color(*rgb)
+        self.set_text_color(255, 255, 255)
+        self.set_font("Arial", "B", 11)
+        self.cell(0, 10, f"SUSPENSION LEVEL {level}: {level_name.upper()}", ln=True, 
+                 align="C", fill=True)
+        self.set_text_color(0, 0, 0)
+        self.ln(3)
+    
+    def add_section(self, title: str):
+        """Add section title"""
+        self.set_font("Arial", "B", 11)
+        self.cell(0, 7, title, ln=True)
+        self.set_font("Arial", "", 10)
+        self.ln(2)
+    
+    def add_multi_cell_indented(self, text: str, indent: float = 5):
+        """Add indented multi-cell text"""
+        self.set_x(15 + indent)
+        self.multi_cell(self.WIDTH - 40 - indent, 5, text)
+    
+    def add_weather_summary_table(self, weather_data: Dict):
+        """Add weather data as a formatted table"""
+        self.set_font("Arial", "B", 10)
+        self.cell(0, 6, "Weather Data Summary:", ln=True)
+        self.ln(2)
+        
+        self.set_font("Arial", "", 9)
+        col_width = (self.WIDTH - 30) / 2
+        
+        weather_items = [
+            ("Temperature", f"{weather_data['temperature_2m']:.1f}°C"),
+            ("Humidity", f"{weather_data['relativehumidity_2m']:.1f}%"),
+            ("Precipitation", f"{weather_data['precipitation']:.1f} mm"),
+            ("Wind Speed", f"{weather_data['windspeed_10m']:.1f} km/h"),
+            ("Feels Like", f"{weather_data['apparent_temperature']:.1f}°C"),
+        ]
+        
+        for label, value in weather_items:
+            self.set_x(20)
+            self.cell(col_width - 5, 5, f"{label}:", border=1)
+            self.cell(col_width - 5, 5, value, border=1, ln=True)
+        
+        self.ln(3)
+    
+    def add_ml_prediction_info(self, predicted_level: int, confidence: float):
+        """Add ML prediction details"""
+        self.set_font("Arial", "B", 10)
+        self.cell(0, 6, "Machine Learning Prediction:", ln=True)
+        self.ln(1)
+        
+        self.set_font("Arial", "", 9)
+        self.add_multi_cell_indented(
+            f"Based on LightGBM classifier trained on historical weather and suspension data. "
+            f"Predicted Level: {predicted_level} | Confidence: {confidence*100:.1f}%"
+        )
+        self.ln(2)
+    
+    def add_pagasa_criteria_info(self, pagasa_level: int, reasons: List[str]):
+        """Add PAGASA criteria assessment"""
+        self.set_font("Arial", "B", 10)
+        self.cell(0, 6, "PAGASA Criteria Assessment:", ln=True)
+        self.ln(1)
+        
+        self.set_font("Arial", "", 9)
+        
+        if reasons:
+            self.add_multi_cell_indented(f"PAGASA Recommended Level: {pagasa_level}")
+            self.ln(1)
+            self.set_font("Arial", "", 9)
+            for reason in reasons:
+                self.add_multi_cell_indented(f"• {reason}")
+        else:
+            self.add_multi_cell_indented("PAGASA: No suspension recommended based on current criteria.")
+        
+        self.ln(2)
+    
+    def add_description(self, level: int):
+        """Add description of what suspension level means"""
+        descriptions = {
+            0: "School and work operations continue normally. No weather-related suspensions.",
+            1: "Only preschool classes and outdoor activities are suspended due to hazardous weather conditions.",
+            2: "Preschool and elementary classes are suspended. Higher education and offices remain open.",
+            3: "All public school levels (preschool through senior high school) are suspended. Government offices may remain open.",
+            4: "All school levels and all government offices remain closed. Private sector advised to cease outdoor activities.",
+        }
+        
+        self.set_font("Arial", "", 10)
+        self.add_multi_cell_indented(
+            f"Scope of Suspension: {descriptions.get(level, 'N/A')}"
+        )
+        self.ln(3)
+    
+    def add_recommendation(self, final_level: int):
+        """Add final recommendation"""
+        self.set_font("Arial", "B", 10)
+        self.set_fill_color(240, 240, 240)
+        
+        if final_level == 0:
+            msg = "RECOMMENDATION: No suspension. Proceed with normal operations."
+        elif final_level == 1:
+            msg = "RECOMMENDATION: Preschool suspension advised. All other institutions operate normally."
+        elif final_level == 2:
+            msg = "RECOMMENDATION: Preschool and Elementary suspension advised."
+        elif final_level == 3:
+            msg = "RECOMMENDATION: All public school levels suspended. Government offices operate with caution."
+        else:
+            msg = "RECOMMENDATION: CRITICAL - All schools and government offices CLOSED."
+        
+        self.multi_cell(0, 6, msg, fill=True, border=1)
+        self.ln(3)
+    
+    def add_disclaimer(self):
+        """Add disclaimer"""
+        self.set_font("Arial", "I", 8)
+        self.set_text_color(100, 100, 100)
+        self.ln(2)
+        self.multi_cell(0, 4, 
+            "DISCLAIMER: This is a prediction tool powered by machine learning and PAGASA criteria. "
+            "Official suspension decisions should always refer to announcements from DepEd, DOST-PAGASA, "
+            "and local government units. HERALD v2.0 is an auxiliary decision-support system only.")
+        self.set_text_color(0, 0, 0)
+
+def generate_suspension_memorandum_pdf(
+    weather_data: Dict,
+    city: str,
+    date: datetime,
+    ml_prediction: Dict,
+    pagasa_level: int,
+    pagasa_reasons: List[str],
+    hourly_df: pd.DataFrame
+) -> str:
+    """Generate complete suspension memorandum with weather analytics annex"""
+    
+    final_level = max(ml_prediction['predicted_level'], pagasa_level)
+    level_info = SUSPENSION_LEVELS[final_level]
+    
+    # Create PDF
+    pdf = SuspensionMemorandumPDF()
+    pdf.add_page()
+    
+    # Main Memorandum
+    pdf.add_memo_title("OFFICIAL MEMORANDUM")
+    pdf.add_memo_recipients(city, date)
+    
+    # Suspension announcement
+    pdf.add_suspension_announcement(final_level, level_info['name'], level_info['risk'])
+    
+    # Main content sections
+    pdf.add_section("I. WEATHER SUMMARY")
+    pdf.add_weather_summary_table(weather_data)
+    
+    pdf.add_section("II. MACHINE LEARNING ASSESSMENT")
+    pdf.add_ml_prediction_info(ml_prediction['predicted_level'], ml_prediction['confidence'])
+    
+    pdf.add_section("III. PAGASA CRITERIA EVALUATION")
+    pdf.add_pagasa_criteria_info(pagasa_level, pagasa_reasons)
+    
+    pdf.add_section("IV. SUSPENSION SCOPE")
+    pdf.add_description(final_level)
+    
+    pdf.add_section("V. FINAL RECOMMENDATION")
+    pdf.add_recommendation(final_level)
+    
+    pdf.add_disclaimer()
+    
+    # Create charts for annex
+    temp_img_paths = []
+    try:
+        # Chart 1: Hourly Weather Trends
+        fig_hourly = make_subplots(
+            rows=3, cols=1,
+            subplot_titles=('Temperature (°C)', 'Precipitation (mm)', 'Wind Speed (km/h)'),
+            vertical_spacing=0.1
+        )
+        
+        fig_hourly.add_trace(
+            go.Scatter(x=hourly_df['date'], y=hourly_df['temperature_2m'],
+                      name='Temperature', line=dict(color='#ef4444', width=2),
+                      fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.1)'),
+            row=1, col=1
+        )
+        fig_hourly.add_trace(
+            go.Bar(x=hourly_df['date'], y=hourly_df['precipitation'],
+                  name='Precipitation', marker_color='#3b82f6'),
+            row=2, col=1
+        )
+        fig_hourly.add_trace(
+            go.Scatter(x=hourly_df['date'], y=hourly_df['windspeed_10m'],
+                      name='Wind Speed', line=dict(color='#10b981', width=2)),
+            row=3, col=1
+        )
+        
+        fig_hourly.update_xaxes(title_text="Time", row=3, col=1)
+        fig_hourly.update_layout(height=600, showlegend=False, 
+                                margin=dict(l=50, r=20, t=80, b=50))
+        
+        img_path1 = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
+        pio.write_image(fig_hourly, img_path1, format='png', width=800, height=500, engine='kaleido')
+        temp_img_paths.append(img_path1)
+        
+        # Chart 2: ML Prediction probabilities
+        probs = ml_prediction['probabilities']
+        if len(probs) < 5:
+            probs = list(probs) + [0.0] * (5 - len(probs))
+        else:
+            probs = list(probs)[:5]
+        
+        prob_colors = [SUSPENSION_LEVELS[i]['color'] for i in range(len(probs))]
+        
+        fig_probs = go.Figure(go.Bar(
+            x=[f"Level {i}" for i in range(len(probs))],
+            y=[p * 100 for p in probs],
+            marker_color=prob_colors,
+            text=[f"{p*100:.1f}%" for p in probs],
+            textposition='auto'
+        ))
+        fig_probs.update_layout(
+            title="ML Prediction Probability Distribution",
+            xaxis_title="Suspension Level",
+            yaxis_title="Probability (%)",
+            height=400,
+            margin=dict(l=50, r=20, t=80, b=50)
+        )
+        
+        img_path2 = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
+        pio.write_image(fig_probs, img_path2, format='png', width=800, height=400, engine='kaleido')
+        temp_img_paths.append(img_path2)
+        
+    except Exception as e:
+        st.warning(f"Could not generate chart images: {str(e)}")
+    
+    # Add Annex page
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 10, "ANNEX: WEATHER ANALYTICS SUPPORT", ln=True)
+    pdf.set_font("Arial", "", 10)
+    pdf.ln(3)
+    
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "A. Hourly Weather Trends", ln=True)
+    pdf.ln(2)
+    pdf.set_font("Arial", "", 9)
+    pdf.multi_cell(0, 5, 
+        "The chart below shows hourly temperature, precipitation, and wind speed trends throughout the selected date. "
+        "These metrics are critical indicators for determining suspension levels as they directly impact safety conditions "
+        "for students and workers.")
+    pdf.ln(2)
+    
+    if len(temp_img_paths) > 0:
+        try:
+            pdf.image(temp_img_paths[0], x=10, y=pdf.get_y(), w=190)
+            pdf.ln(90)
+        except Exception as e:
+            pdf.set_font("Arial", "I", 9)
+            pdf.cell(0, 5, "[Hourly trends chart could not be embedded]", ln=True)
+            pdf.ln(2)
+    
+    # Weather analysis text
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "B. Weather Pattern Analysis", ln=True)
+    pdf.ln(2)
+    pdf.set_font("Arial", "", 9)
+    
+    max_temp = hourly_df['temperature_2m'].max()
+    min_temp = hourly_df['temperature_2m'].min()
+    max_wind = hourly_df['windspeed_10m'].max()
+    total_precip = hourly_df['precipitation'].sum()
+    avg_humidity = hourly_df['relativehumidity_2m'].mean()
+    
+    analysis_text = (
+        f"Temperature Range: {min_temp:.1f}°C to {max_temp:.1f}°C\n"
+        f"Maximum Wind Speed: {max_wind:.1f} km/h\n"
+        f"Total Precipitation: {total_precip:.1f} mm\n"
+        f"Average Humidity: {avg_humidity:.1f}%\n\n"
+    )
+    
+    if max_wind > 100:
+        analysis_text += "HIGH WIND CONDITIONS: Wind speeds exceed safe outdoor operation thresholds. "
+    if total_precip > 30:
+        analysis_text += "HEAVY RAINFALL DETECTED: Precipitation levels pose flooding and transportation hazards. "
+    if max_temp > 40:
+        analysis_text += "EXTREME HEAT: Apparent temperature may pose health risks for outdoor activities. "
+    
+    pdf.multi_cell(0, 5, analysis_text)
+    pdf.ln(2)
+    
+    # ML Model prediction probabilities annex
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "C. Machine Learning Model Confidence", ln=True)
+    pdf.ln(2)
+    pdf.set_font("Arial", "", 9)
+    pdf.multi_cell(0, 5,
+        "The ML model prediction probabilities for each suspension level are shown below. "
+        "The model was trained on historical weather data and suspension records from Metro Manila using LightGBM classifier.")
+    pdf.ln(2)
+    
+    if len(temp_img_paths) > 1:
+        try:
+            pdf.image(temp_img_paths[1], x=10, y=pdf.get_y(), w=190)
+            pdf.ln(70)
+        except Exception as e:
+            pdf.set_font("Arial", "I", 9)
+            pdf.cell(0, 5, "[Probability chart could not be embedded]", ln=True)
+            pdf.ln(2)
+    
+    # Data sources
+    pdf.set_font("Arial", "B", 10)
+    pdf.cell(0, 6, "D. Data Sources & Methodology", ln=True)
+    pdf.ln(2)
+    pdf.set_font("Arial", "", 9)
+    pdf.multi_cell(0, 5,
+        "Weather Data: Open-Meteo API (for forecasts) / Historical Dataset (for past dates)\n"
+        "ML Model: LightGBM Classifier with hyperparameter optimization\n"
+        "PAGASA Criteria: Official Philippine Atmospheric, Geophysical and Astronomical Services Administration guidelines\n"
+        "Cities Covered: All 17 cities of Metro Manila with geographic coordinates")
+    
+    # Save PDF
+    output_path = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False).name
+    pdf.output(output_path)
+    
+    # Clean up temporary image files
+    for img_path in temp_img_paths:
+        try:
+            if os.path.exists(img_path):
+                os.remove(img_path)
+        except:
+            pass
+    
+    return output_path
 
 # ============================================================================
 # VISUALIZATION FUNCTIONS
@@ -732,8 +982,60 @@ def page_home():
             legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01, bgcolor="white", bordercolor="black", borderwidth=1, font=dict(size=16))
         )
         st.plotly_chart(fig, use_container_width=True)
-
-
+    
+    # PDF Download Button
+    st.markdown("---")
+    st.markdown("### Generate Suspension Memorandum")
+    
+    if st.button("Download PDF Memorandum", key="home_pdf_btn", use_container_width=True):
+        with st.spinner("Generating PDF memorandum..."):
+            try:
+                ml_prediction = data.get('predicted_level', data.get('suspension_level', 0))
+                is_prediction = data.get('is_prediction', False)
+                
+                if is_prediction:
+                    ml_pred_dict = {
+                        'predicted_level': ml_prediction,
+                        'probabilities': data.get('probabilities', [0.2]*5),
+                        'confidence': data.get('confidence', 0.75)
+                    }
+                else:
+                    ml_pred_dict = {
+                        'predicted_level': ml_prediction,
+                        'probabilities': [0.0]*5,
+                        'confidence': 1.0
+                    }
+                
+                pagasa_level, pagasa_reasons = check_pagasa_criteria(data['weather_data'])
+                
+                pdf_path = generate_suspension_memorandum_pdf(
+                    weather_data=data['weather_data'],
+                    city=city,
+                    date=datetime.combine(selected_date, datetime.min.time()),
+                    ml_prediction=ml_pred_dict,
+                    pagasa_level=pagasa_level,
+                    pagasa_reasons=pagasa_reasons,
+                    hourly_df=data['hourly_data']
+                )
+                
+                with open(pdf_path, "rb") as f:
+                    st.download_button(
+                        label="Download PDF",
+                        data=f.read(),
+                        file_name=f"Suspension_Memorandum_{city}_{selected_date.strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf"
+                    )
+                
+                st.success("PDF generated successfully!")
+                
+                # Clean up
+                try:
+                    os.remove(pdf_path)
+                except:
+                    pass
+                    
+            except Exception as e:
+                st.error(f"Error generating PDF: {str(e)}")
 
 # ============================================================================
 # PAGE: WEATHER ANALYTICS
@@ -875,7 +1177,6 @@ def page_weather_analytics():
         yaxis='y1',
         fill='tozeroy',
         fillcolor='rgba(239, 68, 68, 0.1)',
-        #secondary_y=False
     ))
 
 # 2. Precipitation - Bar trace (Second Y axis, right)
@@ -886,7 +1187,6 @@ def page_weather_analytics():
         marker_color='dodgerblue',
         yaxis='y2',
         opacity=0.6,
-        #secondary_y=False
     ))
 
 # 3. Wind Speed - Broken line or scatter (Third Y axis, right/secondary)
@@ -897,7 +1197,6 @@ def page_weather_analytics():
         mode='lines+markers',
         line=dict(color='green', width=2, dash='dash'),
         yaxis='y3',
-        #secondary_y=True
     ))
 
 # Axes setup
@@ -1016,71 +1315,60 @@ def page_weather_analytics():
         )
 
         st.plotly_chart(scatter, use_container_width=True)
-    # -------------------------------
-    # 11. PDF REPORT DOWNLOAD
-    # -------------------------------
     
-    data = get_weather_and_suspension(datetime.combine(selected_date, datetime.min.time()), city, df, load_model_artifacts())
-    if not data:
-        st.warning("No data available for the selected date and city.")
-        return
+    # PDF Download Button
+    st.markdown("---")
+    st.markdown("### Generate Suspension Memorandum")
     
-    weather_data = data['weather_data']
-
-    # Now define your variables for PDF from weather_data
-    temperature = weather_data.get("temperature_2m")
-    humidity = weather_data.get("relativehumidity_2m")
-    precip = weather_data.get("precipitation")
-    feels_like = weather_data.get("apparent_temperature")
-    wind_speed = weather_data.get("windspeed_10m")
-    # Also from your Weather Variables & Impact Analysis logic, assign:
-    selected_variable_pair = f"{selected_var1} vs {selected_var2}"
-    correlation_label = label  # From your correlation label logic
-    layman_text = layman        # From your layman descriptions lookup
-
-    if st.button("Download PDF report"):
-        try:
-            with st.spinner("Generating PDF report..."):
-                pdf = generate_pdf_report(
+    if st.button("Download PDF Memorandum", key="analytics_pdf_btn", use_container_width=True):
+        with st.spinner("Generating PDF memorandum..."):
+            try:
+                ml_prediction = data.get('predicted_level', data.get('suspension_level', 0))
+                is_prediction = data.get('is_prediction', False)
+                
+                if is_prediction:
+                    ml_pred_dict = {
+                        'predicted_level': ml_prediction,
+                        'probabilities': data.get('probabilities', [0.2]*5),
+                        'confidence': data.get('confidence', 0.75)
+                    }
+                else:
+                    ml_pred_dict = {
+                        'predicted_level': ml_prediction,
+                        'probabilities': [0.0]*5,
+                        'confidence': 1.0
+                    }
+                
+                pagasa_level, pagasa_reasons = check_pagasa_criteria(data['weather_data'])
+                
+                pdf_path = generate_suspension_memorandum_pdf(
+                    weather_data=data['weather_data'],
                     city=city,
-                    selected_date=selected_date,
-                    temperature=temperature,
-                    humidity=humidity,
-                    precip=precip,
-                    feels_like=feels_like,
-                    wind_speed=wind_speed,
-                    suspension_level=level,
-                    confidence=conf if is_pred else None,
-                    is_prediction=is_pred,
-                    var1_name=selected_var1.replace("_", " ").title(),
-                    var2_name=selected_var2.replace("_", " ").title(),
-                    correlation_label=label,
-                    layman_text=layman,
-                    fig_gauge=fig_gauge,
-                    fig_map=fig_map,
-                    fig_hourly=fig,
-                    fig_scatter=scatter
+                    date=datetime.combine(selected_date, datetime.min.time()),
+                    ml_prediction=ml_pred_dict,
+                    pagasa_level=pagasa_level,
+                    pagasa_reasons=pagasa_reasons,
+                    hourly_df=data['hourly_data']
                 )
                 
-                temp_pdf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-                pdf.output(temp_pdf.name)
+                with open(pdf_path, "rb") as f:
+                    st.download_button(
+                        label="Download PDF",
+                        data=f.read(),
+                        file_name=f"Suspension_Memorandum_{city}_{selected_date.strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf"
+                    )
                 
-                with open(temp_pdf.name, "rb") as f:
-                    pdf_bytes = f.read()
-                
-                st.download_button(
-                    "Download PDF Report",
-                    pdf_bytes,
-                    file_name=f"HERALD_Report_{city}_{selected_date.strftime('%Y%m%d')}.pdf",
-                    mime="application/pdf"
-                )
-                
-                os.remove(temp_pdf.name)
                 st.success("PDF generated successfully!")
                 
-        except Exception as e:
-            st.error(f"Error generating PDF: {str(e)}")
-    
+                # Clean up
+                try:
+                    os.remove(pdf_path)
+                except:
+                    pass
+                    
+            except Exception as e:
+                st.error(f"Error generating PDF: {str(e)}")
 
 # ============================================================================
 # PAGE: HISTORICAL ANALYTICS
@@ -1377,6 +1665,42 @@ def page_what_if():
         fig = go.Figure(go.Bar(x=prob_df['Level'], y=prob_df['Probability'], marker_color=[SUSPENSION_LEVELS[i]['color'] for i in range(len(prob_df))], text=[f"{p:.1f}%" for p in prob_df['Probability']], textposition='auto'))
         fig.update_layout(xaxis_title="Suspension Level", yaxis_title="Probability (%)", height=300, margin=dict(l=20, r=20, t=20, b=50))
         st.plotly_chart(fig, use_container_width=True)
+        
+        # PDF Download for What-If Scenario
+        st.markdown("---")
+        st.markdown("### Generate Scenario Memorandum")
+        
+        if st.button("Download PDF Memorandum", key="whatif_pdf_btn", use_container_width=True):
+            with st.spinner("Generating PDF memorandum..."):
+                try:
+                    pdf_path = generate_suspension_memorandum_pdf(
+                        weather_data=weather_data,
+                        city=city,
+                        date=datetime.now(),
+                        ml_prediction=ml_prediction,
+                        pagasa_level=pagasa_level,
+                        pagasa_reasons=pagasa_reasons,
+                        hourly_df=hourly_df
+                    )
+                    
+                    with open(pdf_path, "rb") as f:
+                        st.download_button(
+                            label="Download PDF",
+                            data=f.read(),
+                            file_name=f"Scenario_Memorandum_{city}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                            mime="application/pdf"
+                        )
+                    
+                    st.success("PDF generated successfully!")
+                    
+                    # Clean up
+                    try:
+                        os.remove(pdf_path)
+                    except:
+                        pass
+                        
+                except Exception as e:
+                    st.error(f"Error generating PDF: {str(e)}")
 
 # ============================================================================
 # PAGE: ABOUT
@@ -1433,7 +1757,6 @@ def page_about():
         st.metric("Total Records", f"{artifacts['metrics']['dataset_info']['total_records']:,}")
     
     with col2:
-        # Show both weighted and balanced accuracy
         weighted_acc = artifacts['metrics']['models']['lightgbm_tuned']['accuracy']
         balanced_acc = artifacts['metrics']['models']['lightgbm_tuned'].get('balanced_accuracy', weighted_acc)
         st.metric("Weighted Accuracy", f"{weighted_acc*100:.2f}%")
@@ -1454,7 +1777,6 @@ def page_about():
     
     metrics = artifacts['metrics']['models']['lightgbm_tuned']
     
-    # Create per-class performance table
     classes = list(range(len(metrics['precision_per_class'])))
     performance_data = {
         'Suspension Level': [f"Level {i}" for i in classes],
@@ -1466,38 +1788,33 @@ def page_about():
     
     perf_df = pd.DataFrame(performance_data)
     
-    # Color code the metrics
     def color_metric(val):
         if isinstance(val, str) and '%' in val:
             num = float(val.replace('%', ''))
             if num >= 80:
-                return 'background-color: #d1fae5'  # Green
+                return 'background-color: #d1fae5'
             elif num >= 50:
-                return 'background-color: #fef3c7'  # Yellow
+                return 'background-color: #fef3c7'
             elif num >= 20:
-                return 'background-color: #fed7aa'  # Orange
+                return 'background-color: #fed7aa'
             else:
-                return 'background-color: #fecaca'  # Red
+                return 'background-color: #fecaca'
         return ''
     
     styled_df = perf_df.style.applymap(color_metric, subset=['Precision', 'Recall', 'F1 Score'])
     st.dataframe(styled_df, use_container_width=True)
     
-    # Add explanation
     st.info("""
     *Understanding the Metrics:*
-    - 🟢 Green (≥80%): Excellent performance
-    - 🟡 Yellow (50-80%): Good performance  
-    - 🟠 Orange (20-50%): Fair performance - model learning patterns
-    - 🔴 Red (<20%): Poor performance - extremely rare events
-    
-    *Support* shows the number of actual instances in the test set. Lower support means fewer examples to learn from.
+    - Green (≥80%): Excellent performance
+    - Yellow (50-80%): Good performance  
+    - Orange (20-50%): Fair performance
+    - Red (<20%): Poor performance
     """)
     
     st.markdown("---")
     st.markdown("<h2 style='font-size:40px; font-weight:bold;'>Aggregate Performance Metrics</h2>", unsafe_allow_html=True)
 
-    
     col1, col2 = st.columns(2)
     
     with col1:
