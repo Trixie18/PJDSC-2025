@@ -144,12 +144,35 @@ def get_date_bounds():
     return min_date, max_date
 
 def get_data_mode(selected_date: datetime, dataset_start: datetime, dataset_end: datetime) -> str:
+    """
+    Determine the data mode based on the selected date.
+
+    Parameters:
+    selected_date (datetime): The selected date
+    dataset_start (datetime): The start date of the dataset
+    dataset_end (datetime): The end date of the dataset
+
+    Returns:
+    str: 'historical' if the selected date is within the dataset range, 'forecast' otherwise
+    """
     if dataset_start.date() <= selected_date.date() <= dataset_end.date():
         return 'historical'
     else:
         return 'forecast'
 
 def get_historical_weather(df: pd.DataFrame, date: datetime, city: str) -> Dict:
+    """
+    Retrieves historical weather data from the dataset for a given city and date.
+
+    Parameters:
+    df (pd.DataFrame): The dataset
+    date (datetime): The date to retrieve data for
+    city (str): The city to retrieve data for
+
+    Returns:
+    Dict: A dictionary containing the historical weather data
+    """
+    
     mask = (df['date'].dt.date == date.date()) & (df['city'] == city)
     city_data = df[mask].copy()
     
@@ -176,6 +199,16 @@ def get_historical_weather(df: pd.DataFrame, date: datetime, city: str) -> Dict:
 
 @st.cache_data(ttl=3600)
 def fetch_openmeteo_forecast(date: datetime, city: str) -> Optional[Dict]:
+    """
+    Fetches the weather forecast for a given city and date from Open-Meteo.
+
+    Parameters:
+    date (datetime): The date to retrieve the forecast for
+    city (str): The city to retrieve the forecast for
+
+    Returns:
+    Optional[Dict]: A dictionary containing the forecast data, or None if the fetch fails
+    """
     coords = CITY_COORDINATES.get(city)
     if not coords:
         return None
@@ -226,6 +259,18 @@ def fetch_openmeteo_forecast(date: datetime, city: str) -> Optional[Dict]:
         return None
 
 def engineer_features_for_prediction(weather_data: Dict, city: str, hourly_df: pd.DataFrame, artifacts: Dict) -> pd.DataFrame:
+    """
+    Engineers features from the given weather data and hourly dataframe for prediction.
+
+    Parameters:
+    weather_data (Dict): Dictionary containing weather data
+    city (str): City name
+    hourly_df (pd.DataFrame): Hourly dataframe
+    artifacts (Dict): Dictionary containing model artifacts
+
+    Returns:
+    pd.DataFrame: DataFrame containing engineered features
+    """
     if len(hourly_df) >= 12:
         row = hourly_df.iloc[12].copy()
     else:
@@ -295,6 +340,18 @@ def engineer_features_for_prediction(weather_data: Dict, city: str, hourly_df: p
     return feature_df
 
 def predict_suspension(weather_data: Dict, city: str, hourly_df: pd.DataFrame, artifacts: Dict) -> Dict:
+    """
+    Generates ML prediction for given weather conditions.
+
+    Parameters:
+        weather_data (dict): Weather metrics
+        city (str): City name
+        hourly_df (pd.DataFrame): Hourly weather data
+        artifacts (dict): Model artifacts
+
+    Returns:
+        dict: Prediction with probabilities, confidence, risk level, and metadata
+    """
     features = engineer_features_for_prediction(weather_data, city, hourly_df, artifacts)
     features = features.astype(float)
     
@@ -345,6 +402,18 @@ def check_pagasa_criteria(weather_data: Dict) -> Tuple[int, List[str]]:
     return suspension_level, reasons
 
 def get_weather_and_suspension(selected_date: datetime, city: str, df: pd.DataFrame, artifacts: Dict) -> Dict:
+    """
+    Retrieves weather data and prediction for a given date and city.
+
+    Parameters:
+        selected_date (datetime): Target date
+        city (str): City name
+        df (pd.DataFrame): Historical dataset
+        artifacts (dict): Model artifacts
+
+    Returns:
+        dict: Weather data and prediction if forecast data is available, else None
+    """
     mode = get_data_mode(selected_date, df['date'].min(), df['date'].max())
     
     if mode == 'historical':
@@ -859,6 +928,17 @@ def generate_suspension_memorandum_pdf(
 # ============================================================================
 
 def create_suspension_gauge(level: int, is_prediction: bool = False, confidence: float = None):
+    """
+    Creates a Plotly figure with a gauge showing the suspension level.
+
+    Args:
+        level (int): The suspension level (0-4)
+        is_prediction (bool, optional): Whether the suspension is a prediction or actual. Defaults to False.
+        confidence (float, optional): The confidence score of the prediction. Defaults to None.
+
+    Returns:
+        go.Figure: The Plotly figure with the gauge
+    """
     info = SUSPENSION_LEVELS[level]
     fig = go.Figure(go.Indicator(
         mode="gauge+number+delta",
@@ -881,6 +961,16 @@ def create_suspension_gauge(level: int, is_prediction: bool = False, confidence:
     return fig
 
 def create_hourly_weather_chart(hourly_df: pd.DataFrame, mode: str):
+    """
+    Creates a Plotly figure with a hourly weather chart.
+
+    Args:
+        hourly_df (pd.DataFrame): DataFrame with hourly weather data
+        mode (str): Mode of the chart (historical or forecast)
+
+    Returns:
+        go.Figure: The Plotly figure with the hourly weather chart
+    """
     fig = make_subplots(rows=3, cols=1, subplot_titles=('Temperature (°C)', 'Precipitation (mm)', 'Wind Speed (km/h)'), vertical_spacing=0.1)
     
     fig.add_trace(go.Scatter(x=hourly_df['date'], y=hourly_df['temperature_2m'], name='Temperature', line=dict(color='#ef4444', width=2), fill='tozeroy', fillcolor='rgba(239, 68, 68, 0.1)'), row=1, col=1)
@@ -893,6 +983,13 @@ def create_hourly_weather_chart(hourly_df: pd.DataFrame, mode: str):
 
 
 def create_weather_cards(weather_data: Dict):
+    """
+    Creates a Streamlit display with 5 columns and 5 metric cards
+    displaying the current weather conditions for a given city.
+
+    Args:
+        weather_data (Dict): Dictionary with weather metrics
+    """
     cols = st.columns(5)
     metrics = [
         ("Temperature", f"{weather_data['temperature_2m']:.1f}°C"),
@@ -973,10 +1070,22 @@ def fetch_all_cities_parallel(selected_date: datetime, df: pd.DataFrame, artifac
 # ============================================================================
 
 def page_home():
+    """
+    Page displaying the HERALD homepage.
+
+    This page displays the HERALD logo, selection settings for date and city, 
+    and a gauge chart displaying the current suspension level for the selected city and date.
+
+    It also displays a weather metrics card for the selected city and date, 
+    and a map chart displaying the suspension levels for all cities in Metro Manila.
+
+    A button to download a PDF memorandum is also provided.
+
+    """
     st.markdown(
     "<h1 style='font-size: 50px;'>🌤️HERALD v2.0</h1>",
     unsafe_allow_html=True
-)
+    )
     
     df = load_historical_data()
     artifacts = load_model_artifacts()
