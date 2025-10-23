@@ -548,7 +548,7 @@ class SuspensionMemorandumPDF(FPDF):
             self.ln(1)
             self.set_font("Arial", "", 9)
             for reason in reasons:
-                self.add_multi_cell_indented(f"• {reason}")
+                self.add_multi_cell_indented(f"- {reason}")
         else:
             self.add_multi_cell_indented("PAGASA: No suspension recommended based on current criteria.")
         
