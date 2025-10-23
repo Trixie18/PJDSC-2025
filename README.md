@@ -13,7 +13,7 @@ A machine learning-powered suspension prediction system for Metro Manila that fo
 
 ## 📋 Table of Contents
 
-- [Overview](#Overview)
+- [Overview](#overview)
 - [Features](#features)
 - [System Architecture](#system-architecture)
 - [Installation](#installation)
@@ -28,7 +28,7 @@ A machine learning-powered suspension prediction system for Metro Manila that fo
 
 ---
 
-## 🎯 Overview
+## Overview
 
 HERALD v2.0 is an intelligent decision-support system designed to predict class and work suspension levels across Metro Manila's 17 cities. By combining machine learning predictions with official PAGASA criteria, the system provides accurate, real-time forecasts to help institutions make informed decisions about suspensions.
 
@@ -43,7 +43,7 @@ HERALD v2.0 is an intelligent decision-support system designed to predict class 
 
 ---
 
-## ✨ Features
+## Features
 
 ### 🏠 Home Dashboard
 - Real-time suspension level predictions
@@ -80,7 +80,7 @@ HERALD v2.0 is an intelligent decision-support system designed to predict class 
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ### Technology Stack
 
@@ -107,7 +107,7 @@ HERALD v2.0 is an intelligent decision-support system designed to predict class 
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 
@@ -177,7 +177,7 @@ playwright install chromium
 
 ---
 
-## 💻 Usage
+## Usage
 
 ### Running the Application
 
@@ -227,7 +227,7 @@ streamlit run main.py --server.port 8501 --server.address 0.0.0.0
 
 ---
 
-## 🤖 Model Details
+## Model Details
 
 ### Machine Learning Pipeline
 
@@ -308,7 +308,7 @@ The system validates ML predictions against official criteria:
 
 ---
 
-## 📊 Dataset
+## Dataset
 
 ### Data Sources
 
@@ -350,7 +350,7 @@ Caloocan, Las Piñas, Makati, Malabon, Mandaluyong, Manila, Marikina, Muntinlupa
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 PJDSC-2025/
@@ -382,7 +382,7 @@ PJDSC-2025/
 
 ---
 
-## 🔌 API Reference
+## API Reference
 
 ### Key Functions
 
@@ -425,7 +425,7 @@ Creates official PDF memorandum.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Here's how to get started:
 
@@ -459,7 +459,7 @@ We welcome contributions! Here's how to get started:
 
 ---
 
-## 👥 Team
+## Team
 
 ### Development Team
 
@@ -480,13 +480,13 @@ We welcome contributions! Here's how to get started:
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 HERALD v2.0 is a prediction tool and should **NOT** be used as the sole basis for official suspension decisions. Always refer to official announcements from:
 
@@ -498,7 +498,7 @@ This system is designed as an **auxiliary decision-support tool** only.
 
 ---
 
-## 📞 Support
+## Support
 
 For questions, issues, or suggestions:
 
@@ -508,7 +508,7 @@ For questions, issues, or suggestions:
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Open-Meteo**: Weather API provider
 - **PAGASA**: Official meteorological guidelines
@@ -519,7 +519,7 @@ For questions, issues, or suggestions:
 
 ---
 
-## 📈 Version History
+## Version History
 
 ### v2.0 (October 2025)
 - Enhanced ML model with aggressive class balancing
@@ -536,7 +536,7 @@ For questions, issues, or suggestions:
 
 ---
 
-## 🎯 Future Roadmap
+## Future Roadmap
 
 - [ ] Real-time alert system via SMS/Email
 - [ ] Mobile application (iOS/Android)
