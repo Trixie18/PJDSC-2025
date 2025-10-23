@@ -13,7 +13,7 @@ A machine learning-powered suspension prediction system for Metro Manila that fo
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
+- [Overview](#Overview)
 - [Features](#features)
 - [System Architecture](#system-architecture)
 - [Installation](#installation)
