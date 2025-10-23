@@ -465,17 +465,20 @@ We welcome contributions! Here's how to get started:
 
 **Gabrielle B. Cabanilla**
 - School: Polytechnic University of the Philippines
-- Role: Railway Engineering Graduate
+- Program: BS Railway Engineering
+- Profession: Data Analyst
 - Email: cabanillla.gb@gmail.com
 
 **Jeremy Charles B. Mora**
 - School: Technological Institute of the Philippines
-- Role: Computer Science Major - Data Analyst
+- Program: BS Computer Science
+- Profession: Data Engineer
 - Email: jeremycharlesmora@gmail.com
 
 **John Trixie M. Ocampo**
 - School: Pamantasan ng Lungsod ng Maynila
-- Role: BS Mathematics Graduate
+- Program: BS Mathematics
+- Profession: Data Scientist
 - Email: jtocampo0118@gmail.com
 
 ---
